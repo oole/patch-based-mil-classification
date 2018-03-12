@@ -82,4 +82,4 @@ def build_model(scope):
 
 
 
-train, loss, y, accuracy, x, keep_prob, learning_rate = build_model('lol')
+# train, loss, y, accuracy, x, keep_prob, learning_rate = build_model('lol')
