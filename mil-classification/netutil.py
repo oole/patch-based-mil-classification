@@ -34,7 +34,6 @@ def build_model(scope):
 
         W_conv1 = weight_variable([10,10,3,80], 'W_conv1')
         conv1 = tf.nn.relu(conv2d(x, W_conv1, stride=[1,2,2,1]))
-
         bn1 = batch_norm(conv1, is_training, name='bn1')
         mp1 = maxpool(bn1, kernelSize=6, strideSize=4)
 
@@ -47,7 +46,7 @@ def build_model(scope):
         W_conv3 = weight_variable([3,3,120,160], "W_conv3")
         conv3 = tf.nn.relu(conv2d(mp2, W_conv3))
 
-        W_conv4 = weight_variable([3,3,160,120], "W_conv4")
+        W_conv4 = weight_variable([3,3,160,200], "W_conv4")
         conv4 = tf.nn.relu(conv2d(conv3, W_conv4))
 
         mp3 = maxpool(conv4, kernelSize=3, strideSize=2)
@@ -67,18 +66,19 @@ def build_model(scope):
         W_fc3 = weight_variable([320,6], "W_fc3")
         y_conv = tf.matmul(drop2, W_fc3)
 
-        y = tf.placeholder(tf.uint8, [None])
-        one_hot_y = tf.one_hot(y, 6)
-        loss = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(labels=one_hot_y, logits = y_conv))
+        y = tf.placeholder(tf.uint8, [None, 6])
+
+        # one_hot_y = tf.one_hot(y, 6)
+        loss = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits_v2(labels=y, logits = y_conv))
 
         learning_rate = tf.placeholder(tf.float32)
 
         train = tf.train.AdamOptimizer(learning_rate).minimize(loss)
 
-        correct_prediction = tf.equal(tf.argmax(y_conv, 1), tf.argmax(one_hot_y, 1))
+        correct_prediction = tf.equal(tf.argmax(y_conv, 1), tf.argmax(y, 1))
         accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
 
-        return train, loss, y, accuracy, x, keep_prob, learning_rate
+        return train, loss, y, accuracy, x, keep_prob, learning_rate, is_training
 
 
 

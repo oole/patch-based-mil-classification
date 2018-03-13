@@ -3,7 +3,7 @@ import data
 
 def input_parser(img_path):
     label_encoder = data.labelencoder()
-    label =  label_encoder.transform([data.getlabel(img_path)])
+    label =  label_encoder.transform([data.getlabel(str(img_path))])
     one_hot = tf.one_hot(label, 6)
 
     img_file = tf.read_file(img_path)
@@ -14,9 +14,11 @@ def input_parser(img_path):
 def input_parser_imglabel(img_path, img_label):
     one_hot = tf.one_hot(img_label, 6)
 
-    print(img_path)
     img_file = tf.read_file(img_path)
     img_decoded = tf.image.decode_image(img_file, channels=3)
+    img_decoded = tf.image.convert_image_dtype(img_decoded, tf.float32)
+    img_decoded = tf.image.per_image_standardization(img_decoded)
+
 
     return img_decoded, one_hot
 
