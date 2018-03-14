@@ -1,9 +1,9 @@
 import tensorflow as tf
-import data
+import data_tf
 
 def input_parser(img_path):
-    label_encoder = data.labelencoder()
-    label =  label_encoder.transform([data.getlabel(str(img_path))])
+    label_encoder = data_tf.labelencoder()
+    label =  label_encoder.transform([data_tf.getlabel(str(img_path))])
     one_hot = tf.one_hot(label, 6)
 
     img_file = tf.read_file(img_path)
@@ -40,8 +40,8 @@ def slidelist_to_patchlist(slidelist, H = None):
 
 def get_labels_for_patches(patches):
     labels = []
-    labelencoder = data.labelencoder()
+    labelencoder = data_tf.labelencoder()
     for patch in patches:
-        labels.append(data.getlabel(patch))
+        labels.append(data_tf.getlabel(patch))
     encoded_labels = labelencoder.transform(labels)
     return encoded_labels
