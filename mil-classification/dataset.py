@@ -45,3 +45,23 @@ def get_labels_for_patches(patches):
         labels.append(data_tf.getlabel(patch))
     encoded_labels = labelencoder.transform(labels)
     return encoded_labels
+
+def img_dataset(images, batch_size, shuffle_buffer_size=None, shuffle=False):
+    labels = get_labels_for_patches(images)
+    if shuffle and shuffle_buffer_size == None:
+        raise Exception("If shuffle==True shuffle_buffer_size must be set!")
+
+    tr_data = tf.data.Dataset.from_tensor_slices((images, labels))
+    tr_data = tr_data.map(input_parser_imglabel)
+    if shuffle == True:
+        tr_data = tr_data.shuffle(buffer_size=shuffle_buffer_size)
+    tr_data = tr_data.batch(batch_size)
+    return tr_data
+
+def proxy_iterator(sess, *iterators):
+    if len(iterators) < 2:
+        raise ValueError("At least two iterators needed in order to chain them")
+    handle = tf.placeholder(tf.string, shape=[])
+    iterator = tf.data.Iterator.from_string_handle(handle, output_types=iterators[0].output_types, output_shapes=iterators[0].output_shapes)
+    access = list(map(lambda x: sess.run(x.string_handle()), iterators))
+    return handle, access, iterator

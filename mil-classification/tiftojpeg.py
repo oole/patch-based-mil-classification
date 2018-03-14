@@ -22,4 +22,4 @@ def convert_tif_to_jpg(sourcepath, sinkpath):
             io.imsave(sinkimgpath + ".jpg", imread, quality=100)
         i +=1
 
-convert_tif_to_jpg("/home/oole/Documents/UKN/BP/validation/patient", "/home/oole/Documents/UKN/BP/val_jpg_test/patient")
+convert_tif_to_jpg("G:/Data/Production/data_training/cnn_test_data/validation/patient", "D:/Data/tf_test_data/validation/patient")

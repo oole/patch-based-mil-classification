@@ -25,12 +25,12 @@ def maxpool(x, strideSize=2, kernelSize=2, padding='VALID'):
     return tf.nn.max_pool(x, ksize=[1,kernelSize,kernelSize,1], strides=[1,strideSize,strideSize,1], padding=padding)
 
 
-def build_model(scope):
+def build_model(scope, x, y):
     with tf.variable_scope(scope):
         is_training = tf.placeholder(tf.bool, name='phase')
         keep_prob = tf.placeholder(tf.float32)
 
-        x = tf.placeholder(tf.float32, shape=[None, 400,400,3])
+        #x = tf.placeholder(tf.float32, shape=[None, 400,400,3])
 
         W_conv1 = weight_variable([10,10,3,80], 'W_conv1')
         conv1 = tf.nn.relu(conv2d(x, W_conv1, stride=[1,2,2,1]))
@@ -66,7 +66,7 @@ def build_model(scope):
         W_fc3 = weight_variable([320,6], "W_fc3")
         y_conv = tf.matmul(drop2, W_fc3)
 
-        y = tf.placeholder(tf.uint8, [None, 6])
+        #y = tf.placeholder(tf.uint8, [None, 6])
 
         # one_hot_y = tf.one_hot(y, 6)
         loss = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits_v2(labels=y, logits = y_conv))
