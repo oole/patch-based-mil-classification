@@ -16,7 +16,8 @@ def bias_variable(shape, name, trainable=True, zero=False):
         return tf.get_variable(name=name, shape=shape, initializer=tf.constant_initializer(0.1), trainable=trainable)
 
 def batch_norm(x, is_training, name=None, trainable=True):
-    return tf.layers.batch_normalization(x, momentum=0.9, training=is_training, name=name, trainable=trainable)
+    bn = tf.layers.batch_normalization(x, momentum=0.9, training=is_training, name=name, trainable=trainable)
+    return bn
 
 def conv2d(x, w, stride=[1,1,1,1], padding="VALID"):
     return tf.nn.conv2d(x, filter=w, strides=stride, padding=padding)
@@ -78,7 +79,21 @@ def build_model(scope, x, y):
         correct_prediction = tf.equal(tf.argmax(y_conv, 1), tf.argmax(y, 1))
         accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
 
-        return train, loss, y, accuracy, x, keep_prob, learning_rate, is_training
+        ### Tensorboard
+
+        train_loss_summ = tf.summary.scalar("loss", loss)
+        train_acc_summ = tf.summary.scalar("accuracy", accuracy)
+        train_bn_summ = tf.summary.histogram("batchnorm", bn1)
+
+        val_loss_summ = tf.summary.scalar("loss_val", loss)
+        val_acc_summ = tf.summary.scalar("accuracy_val", accuracy)
+        val_bn_summ = tf.summary.histogram("batchnorm_val", bn1)
+
+        summary_train_op = tf.summary.merge([train_loss_summ, train_acc_summ, train_bn_summ])
+
+        summary_val_op = tf.summary.merge([val_loss_summ, val_acc_summ, val_bn_summ])
+
+        return train, loss, y, accuracy, x, keep_prob, learning_rate, is_training, summary_train_op, summary_val_op
 
 
 

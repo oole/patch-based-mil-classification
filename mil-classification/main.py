@@ -9,7 +9,10 @@ import numpy as np
 dropout_ratio = 0.5
 number_of_epochs = 30
 batch_size = 32
-lr = 0.0005
+lr = 0.0001
+
+#### log dir
+log_directory = "C:/custom_log/tf"
 
 """ LOAD DATA """
 training_data_path = 'D:/Data/tf_test_data/validation'
@@ -30,14 +33,17 @@ val_iterator = val_dataset.make_initializable_iterator()
 with tf.Session() as sess:
     iterator_handle, iterator_access, proxy_iterator = dataset.proxy_iterator(sess, train_iterator, val_iterator)
 
+
     train_iterator_handle = iterator_access[0]
     val_iterator_handle = iterator_access[1]
 
     x, y = proxy_iterator.get_next()
 
 
-    train, loss, y, accuracy, x, keep_prob, learning_rate, is_training = netutil.build_model('hemodel', x, y)
+    train, loss, y, accuracy, x, keep_prob, learning_rate, is_training, summary_train_op, summary_val_op= netutil.build_model('hemodel', x, y)
 
+    ### summary writer ###
+    writer = tf.summary.FileWriter(log_directory, graph=tf.get_default_graph())
     sess.run(tf.global_variables_initializer())
 
     epoch_train_acc = []
@@ -63,6 +69,12 @@ with tf.Session() as sess:
                                                   is_training: True,
                                                   iterator_handle: train_iterator_handle})
 
+                train_summ = sess.run([summary_train_op],
+                                      feed_dict={keep_prob: (1 - dropout_ratio),
+                                                 learning_rate: lr,
+                                                 is_training: True,
+                                                 iterator_handle: train_iterator_handle})
+                writer.add_summary(train_summ, epoch)
                 util.update_print(
                     "Training, Epoch: %0.f -- Loss: %0.5f, Acc: %0.5f, %0.d / %0.d" % (epoch, err, acc, i, no_patches//batch_size+1))
                 i = i+1
@@ -78,10 +90,11 @@ with tf.Session() as sess:
         i= 1
         while True:
             try:
-                err, acc = sess.run([loss, accuracy],
+                err, acc, summ_val = sess.run([loss, accuracy, summary_val_op],
                                        feed_dict={keep_prob: (1-dropout_ratio),
                                                   is_training: False,
                                                   iterator_handle: val_iterator_handle})
+                writer.add_summary(summ_val, epoch)
                 util.update_print(
                     "Validation, Epoch: %0.f -- Loss: %0.5f, Acc: %0.5f, %0.f / %0.f" % (epoch, err, acc, i, no_patches//batch_size +1))
                 i = i + 1
