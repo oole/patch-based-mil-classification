@@ -26,7 +26,11 @@ def maxpool(x, strideSize=2, kernelSize=2, padding='VALID'):
     return tf.nn.max_pool(x, ksize=[1,kernelSize,kernelSize,1], strides=[1,strideSize,strideSize,1], padding=padding)
 
 
-def build_model(scope, x, y):
+def build_model(scope, x, y,
+                use_bn_1=True,
+                use_bn_2=True,
+                use_dropout_1=True,
+                use_dropout_2=True):
     with tf.variable_scope(scope):
         is_training = tf.placeholder(tf.bool, name='phase')
         keep_prob = tf.placeholder(tf.float32)
@@ -35,14 +39,23 @@ def build_model(scope, x, y):
 
         W_conv1 = weight_variable([10,10,3,80], 'W_conv1')
         conv1 = tf.nn.relu(conv2d(x, W_conv1, stride=[1,2,2,1]))
-        bn1 = batch_norm(conv1, is_training, name='bn1')
-        mp1 = maxpool(bn1, kernelSize=6, strideSize=4)
+
+        if use_bn_1:
+
+            bn1 = batch_norm(conv1, is_training, name='bn1')
+            mp1 = maxpool(bn1, kernelSize=6, strideSize=4)
+        else:
+            mp1 = maxpool(conv1, kernelSize=6, strideSize=4)
 
         W_conv2 = weight_variable([5,5,80,120], "W_conv2")
         conv2 = tf.nn.relu(conv2d(mp1, W_conv2))
 
-        bn2 = batch_norm(conv2, is_training, name='bn2')
-        mp2 = maxpool(bn2, kernelSize=3, strideSize=2)
+
+        if use_bn_2:
+            bn2 = batch_norm(conv2, is_training, name='bn2')
+            mp2 = maxpool(bn2, kernelSize=3, strideSize=2)
+        else:
+            mp2 = maxpool(conv2, kernelSize=3, strideSize=2)
 
         W_conv3 = weight_variable([3,3,120,160], "W_conv3")
         conv3 = tf.nn.relu(conv2d(mp2, W_conv3))
@@ -57,15 +70,24 @@ def build_model(scope, x, y):
         W_fc1 = weight_variable([8*8*200, 320], "W_fc1")
         fc1 = tf.nn.relu(tf.matmul(flat, W_fc1))
 
-        drop1 = tf.nn.dropout(fc1, keep_prob)
+        if (use_dropout_1 == True):
+            drop1 = tf.nn.dropout(fc1, keep_prob)
 
-        W_fc2 = weight_variable([320, 320], "W_fc2")
-        fc2 = tf.nn.relu(tf.matmul(drop1, W_fc2))
+            W_fc2 = weight_variable([320, 320], "W_fc2")
+            fc2 = tf.nn.relu(tf.matmul(drop1, W_fc2))
+        else:
+            W_fc2 = weight_variable([320, 320], "W_fc2")
+            fc2 = tf.nn.relu(tf.matmul(fc1, W_fc2))
 
-        drop2 = tf.nn.dropout(fc2, keep_prob)
+        if (use_dropout_2 == True):
 
-        W_fc3 = weight_variable([320,6], "W_fc3")
-        y_conv = tf.matmul(drop2, W_fc3)
+            drop2 = tf.nn.dropout(fc2, keep_prob)
+
+            W_fc3 = weight_variable([320,6], "W_fc3")
+            y_conv = tf.matmul(drop2, W_fc3)
+        else:
+            W_fc3 = weight_variable([320, 6], "W_fc3")
+            y_conv = tf.matmul(fc2, W_fc3)
 
         #y = tf.placeholder(tf.uint8, [None, 6])
 
@@ -79,21 +101,7 @@ def build_model(scope, x, y):
         correct_prediction = tf.equal(tf.argmax(y_conv, 1), tf.argmax(y, 1))
         accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
 
-        ### Tensorboard
-
-        train_loss_summ = tf.summary.scalar("loss", loss)
-        train_acc_summ = tf.summary.scalar("accuracy", accuracy)
-        train_bn_summ = tf.summary.histogram("batchnorm", bn1)
-
-        val_loss_summ = tf.summary.scalar("loss_val", loss)
-        val_acc_summ = tf.summary.scalar("accuracy_val", accuracy)
-        val_bn_summ = tf.summary.histogram("batchnorm_val", bn1)
-
-        summary_train_op = tf.summary.merge([train_loss_summ, train_acc_summ, train_bn_summ])
-
-        summary_val_op = tf.summary.merge([val_loss_summ, val_acc_summ, val_bn_summ])
-
-        return train, loss, y, accuracy, x, keep_prob, learning_rate, is_training, summary_train_op, summary_val_op
+        return train, loss, y, accuracy, x, keep_prob, learning_rate, is_training
 
 
 
