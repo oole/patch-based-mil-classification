@@ -15,12 +15,16 @@ from keras import backend as K
 from keras.callbacks import Callback
 from sklearn.metrics import accuracy_score, confusion_matrix
 
-
-
 tgc = None #tgm.tgClient()
-global_savepath =""
 
-def emtrain(train_datapath, cnn_learn, cnn_pred, val_datapath, cnnpath, savepath, label_encoder, batch_size, initial_epochnum, loggerpath, spatial_smoothing=False, do_augment=True, tgc_send=False):
+def emtrain(train_datapath, val_datapath,
+            loadpath, savepath,
+            label_encoder, batch_size,
+            initial_epochnum=0,
+            model_name='model',
+            spatial_smoothing=False,
+            do_augment=True,
+            tgc_send=False):
 
     train_slidelist, train_slide_dimensions, old_disc_patches, train_slide_label = data.collect_data(train_datapath, batch_size)
 
@@ -39,10 +43,11 @@ def emtrain(train_datapath, cnn_learn, cnn_pred, val_datapath, cnnpath, savepath
     num_3 = 0
     num_4 = 0
     num_5 = 0
-    # shuffled_slidelist, train_slide_label = shuffle(train_slidelist, train_slide_label)
-    # train_slidelist, x_val = data.split_patches(shuffled_slidelist)
     H = initialize_h(train_slidelist)
     get_per_class_instances(train_slidelist, train_slide_label, label_encoder, tgc_send)
+
+    with tf.session()
+
     while (epochnum < 100):
         if tgc_send:
             tgc.sendmsg("EM Iteration: " + repr(iteration))
@@ -76,14 +81,6 @@ def emtrain(train_datapath, cnn_learn, cnn_pred, val_datapath, cnnpath, savepath
             num_label = label_encoder.transform(np.asarray(label))
 
             pred, pred_histogram = predict_cnn.predict_one_slide_as_patches(cnn_learn, patches, batch_size, getsub=do_augment)
-
-            eval1 = cnn_learn.evaluate_generator(data.evalpatchgen(patches, batch_size, label_encoder),
-                                                     steps=len(patches) // batch_size)
-
-            print("Slide %s Evaluation Accuracy: %s" % (str(i),eval1[1]))
-            eval2 = cnn_learn.evaluate_generator(data.evalpatchgen(patches, batch_size, label_encoder),
-                                               steps=len(patches) // batch_size)
-            print("Slide %s Evaluation Accuracy: %s" % (str(i), eval2[1]))
 
             number_of_correct_preds += pred_histogram[num_label]
 

@@ -47,6 +47,10 @@ with tf.Session() as sess:
     ### summary writer ###
     writer = tf.summary.FileWriter(log_directory, graph=tf.get_default_graph())
 
+    ### Fix BN update problem
+    extr_up_op = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
+    ##########
+
     ### SAVER ###
     saver = tf.train.Saver()
     ########################

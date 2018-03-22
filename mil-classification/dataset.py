@@ -1,5 +1,7 @@
 import tensorflow as tf
 import data_tf
+from random import randint
+
 
 def input_parser(img_path):
     label_encoder = data_tf.labelencoder()
@@ -11,6 +13,7 @@ def input_parser(img_path):
 
     return img_decoded, one_hot
 
+
 def input_parser_imglabel(img_path, img_label):
     one_hot = tf.one_hot(img_label, 6)
 
@@ -18,25 +21,38 @@ def input_parser_imglabel(img_path, img_label):
     img_decoded = tf.image.decode_image(img_file, channels=3)
     img_decoded = tf.image.convert_image_dtype(img_decoded, tf.float32)
     img_decoded = tf.image.per_image_standardization(img_decoded)
-
-
     return img_decoded, one_hot
+
+def input_parser_imglabel_augment(img_path, img_label):
+    one_hot = tf.one_hot(img_label, 6)
+
+    img_file = tf.read_file(img_path)
+    img_decoded = tf.image.decode_image(img_file, channels=3)
+    img_float = tf.image.convert_image_dtype(img_decoded, tf.float32)
+    img_flip_lr = tf.image.random_flip_left_right(img_float)
+    img_flip_ud = tf.image.random_flip_up_down(img_flip_lr)
+    random_x = randint(1, 100)
+    random_y = randint(1, 100)
+    img_cropped = tf.image.crop_to_bounding_box(img_flip_ud, random_x, random_y, 400, 400)
+    img_standard = tf.image.per_image_standardization(img_cropped)
+    return img_standard, one_hot
 
 def slidelist_to_patchlist(slidelist, H = None):
     patches = []
     for i in range(len(slidelist)):
         slide = slidelist[i]
-        if (H == None):
+        if H is None:
             for patch in slide:
                 patches.append(patch)
         else:
             h = H[i]
-            if (len(h) != len(slide)):
+            if len(h) != len(slide):
                 raise Exception("Hidden vars do not correspond to patches")
             for j in range(len(slide)):
-                if (h[j] > 0):
+                if h[j] > 0:
                     patches.append(slide[j])
     return patches
+
 
 def get_labels_for_patches(patches):
     labels = []
@@ -46,17 +62,36 @@ def get_labels_for_patches(patches):
     encoded_labels = labelencoder.transform(labels)
     return encoded_labels
 
+
 def img_dataset(images, batch_size, shuffle_buffer_size=None, shuffle=False):
     labels = get_labels_for_patches(images)
-    if shuffle and shuffle_buffer_size == None:
+    if len(labels) != len(images):
+        raise Exception("Labels do not correspond to images")
+    if shuffle and shuffle_buffer_size is None:
         raise Exception("If shuffle==True shuffle_buffer_size must be set!")
 
     tr_data = tf.data.Dataset.from_tensor_slices((images, labels))
     tr_data = tr_data.map(input_parser_imglabel)
-    if shuffle == True:
+    if shuffle:
         tr_data = tr_data.shuffle(buffer_size=shuffle_buffer_size)
     tr_data = tr_data.batch(batch_size)
     return tr_data
+
+
+def img_dataset_augment(images, batch_size, shuffle_buffer_size=None, shuffle=False):
+    labels = get_labels_for_patches(images)
+    if len(labels) != len(images):
+        raise Exception("Labels do not correspond to images")
+    if shuffle and shuffle_buffer_size is None:
+        raise Exception("If shuffle==True shuffle_buffer_size must be set!")
+
+    tr_data = tf.data.Dataset.from_tensor_slices((images, labels))
+    tr_data = tr_data.map(input_parser_imglabel_augment)
+    if shuffle:
+        tr_data = tr_data.shuffle(buffer_size=shuffle_buffer_size)
+    tr_data = tr_data.batch(batch_size)
+    return tr_data
+
 
 def proxy_iterator(sess, *iterators):
     if len(iterators) < 2:

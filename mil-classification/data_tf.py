@@ -134,62 +134,6 @@ def float_and_norm(img):
     return modimg
 
 
-def patchgen_no_shuffle(slidelist, batch_size, label_encoder, H=None):
-    return patchgenval(slidelist, batch_size, label_encoder, H, shuffle=False)
-
-def patchgenval(slidelist, batch_size, label_encoder, H=None, shuffle=True, get_patch_label=getlabel):
-    patches = []
-    for i in range(len(slidelist)):
-        slide = slidelist[i]
-        if (H == None):
-            for patch in slide:
-                patches.append(patch)
-        else:
-            h = H[i]
-            if (len(h) != len(slide)):
-                raise Exception("Hidden vars do not correspond to patches")
-            for j in range(len(slide)):
-                if (h[j] > 0):
-                    patches.append(slide[j])
-
-    if shuffle:
-        np.random.shuffle(patches)
-    batchimg = []
-    batchlabel = []
-    while (True):
-        for i in range(len(patches)):
-            patch = patches[i]
-            patchimg = float_and_norm(imread(patch))
-            batchimg.append(patchimg)
-            batchlabel.append(get_patch_label(patch))
-            if (i + 1) % batch_size == 0:
-                # print("patches yielded: %s" % str(i+1))
-                yield (np.asarray(batchimg),
-                       utils.to_categorical(label_encoder.transform(np.asarray(batchlabel)), len(label_encoder.classes_)))
-                batchimg = []
-                batchlabel = []
-
-def evalpatchgen(patches, batchSize, label_encoder, shuffle=True):
-    if shuffle:
-        np.random.shuffle(patches)
-    batchimg = []
-    batchlabel = []
-    while (True):
-        for i in range(len(patches)):
-            patch = patches[i]
-            patchimg = float_and_norm(imread(patch))
-            batchimg.append(patchimg)
-            batchlabel.append(getlabel(patch))
-            if (i + 1) % batchSize == 0:
-                # print("Length: %s, %s"  % (str(len(batchimg)), str(len(utils.to_categorical(label_encoder.transform(np.asarray(batchlabel)), len(label_encoder.classes_))))))
-                yield (np.asarray(batchimg),
-                       utils.to_categorical(label_encoder.transform(np.asarray(batchlabel)), len(label_encoder.classes_)))
-                batchimg = []
-                batchlabel = []
-
-
-
-
 def collect_data(datapath, batch_size, filter_batch_size=True):
     patients = os.listdir(datapath)
     np.random.shuffle(patients)
