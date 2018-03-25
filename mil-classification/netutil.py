@@ -84,24 +84,25 @@ def build_model(scope, x, y,
             drop2 = tf.nn.dropout(fc2, keep_prob)
 
             W_fc3 = weight_variable([320,6], "W_fc3")
-            y_conv = tf.matmul(drop2, W_fc3)
+            y_pred = tf.matmul(drop2, W_fc3)
         else:
             W_fc3 = weight_variable([320, 6], "W_fc3")
-            y_conv = tf.matmul(fc2, W_fc3)
+            y_pred = tf.matmul(fc2, W_fc3)
 
         #y = tf.placeholder(tf.uint8, [None, 6])
 
         # one_hot_y = tf.one_hot(y, 6)
-        loss = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits_v2(labels=y, logits = y_conv))
+        loss = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits_v2(labels=y, logits = y_pred))
 
         learning_rate = tf.placeholder(tf.float32)
 
         train = tf.train.AdamOptimizer(learning_rate).minimize(loss)
 
-        correct_prediction = tf.equal(tf.argmax(y_conv, 1), tf.argmax(y, 1))
+        y_argmax = tf.argmax(y_pred, 1)
+        correct_prediction = tf.equal(y_argmax, tf.argmax(y, 1))
         accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
 
-        return train, loss, y, accuracy, x, keep_prob, learning_rate, is_training
+        return train, loss, y, accuracy, x, keep_prob, learning_rate, is_training, y_pred, y_argmax
 
 
 
