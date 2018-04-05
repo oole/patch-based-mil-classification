@@ -8,8 +8,15 @@ import tensorflow as tf
 import dataset
 import train
 import data_tf
+import gc
+
+from sklearn.metrics import accuracy_score, confusion_matrix
+import csv
+import train_logreg
+import util
 
 shuffle_buffer_size = 2000
+
 
 def emtrain(train_datapath, val_datapath,
             loadpath, savepath,
@@ -20,7 +27,7 @@ def emtrain(train_datapath, val_datapath,
             do_augment=True,
             num_epochs =2,
             dropout_ratio=0.5,
-            learning_rate=0.0005, sanity_check=False):
+            learning_rate=0.0005, sanity_check=False, logfile_path=None, logreg_savepath=None):
 
     train_slidelist, train_slide_dimensions, total_num_train_patches, train_slide_label = data_tf.collect_data(train_datapath, batch_size)
 
@@ -61,31 +68,41 @@ def emtrain(train_datapath, val_datapath,
         while True:
 
             ##
-            H, disc_patches_new = find_discriminative_patches(train_slidelist, train_slide_label,
-                                                              train_slide_dimensions, total_num_train_patches,
-                                                              spatial_smoothing,
-                                        y_pred_op, y_argmax_op, batch_size, dropout_ratio, label_encoder,
-                                        keep_prob_ph, is_training_ph, proxy_iterator_handle_ph,
-                                        sess, sanity_check=sanity_check, do_augment=do_augment)
+            H, disc_patches_new, train_predict_accuracy, train_max_accuracy, train_logreg_acccuracy = \
+                find_discriminative_patches(train_slidelist, train_slide_label,
+                                            train_slide_dimensions, total_num_train_patches,
+                                            spatial_smoothing,
+                                            y_pred_op, y_argmax_op, batch_size, dropout_ratio, label_encoder,
+                                            keep_prob_ph, is_training_ph, proxy_iterator_handle_ph,
+                                            sess, sanity_check=sanity_check, do_augment=do_augment, logreg_model_savepath=logreg_savepath, epochnum=epochnum)
             print("Discriminative patches: " + repr(disc_patches_new) + ". Before: " +  repr(old_disc_patches))
 
-            train_on_discriminative_patches(train_slidelist, H, num_epochs, disc_patches_new, proxy_iterator_handle_ph, batch_size,
+            gc.collect()
+
+            train_accuracy, val_accuracy = train_on_discriminative_patches(train_slidelist, H, num_epochs, disc_patches_new, proxy_iterator_handle_ph, batch_size,
                                             train_op, loss_op, accuracy_op,
                                             keep_prob_ph, learning_rate_ph, is_training_ph,
                                             dropout_ratio=dropout_ratio, learning_rate=learning_rate, sess=sess, do_augment=do_augment)
 
-
+            epochnum += num_epochs
             old_disc_patches = disc_patches_new
             iteration = iteration + 1
 
+            util.write_log_file(logfile_path, epochnum=epochnum, train_predict_accuracy=train_predict_accuracy, train_max_accuracy=train_max_accuracy,
+                   train_logreg_acccuracy=train_logreg_acccuracy, train_accuracy=train_accuracy,
+                   val_accuracy=val_accuracy)
             if savepath is not None:
-                saver.save(sess, savepath + "/iteration" + str(iteration))
+                saver.save(sess, savepath)
+
+            print("Iteration done (breaking)")
+            # Since there is a memory leak problem at the moment the learning will not be looped
+            break
 
 
 def find_discriminative_patches(slide_list, slide_label_list, slide_dimension_list, total_patch_num, spatial_smoothing,
                                 y_pred_op, y_argmax_op, batch_size, dropout_ratio, label_encoder,
                                 keep_prob_ph, is_training_ph, iterator_handle_ph,
-                                sess, sanity_check=False, do_augment=False):
+                                sess, sanity_check=False, do_augment=False, logreg_model_savepath=None, epochnum=None):
     H = initialize_h(slide_list)
 
     # S image level argamx for true class
@@ -203,8 +220,9 @@ def find_discriminative_patches(slide_list, slide_label_list, slide_dimension_li
         else:
             Exception("probabilities could not be attributed")
 
+    train_predict_accuracy = number_of_correct_pred / total_patch_num
     print("Number of correct predictions: %s, corresponds to %0.3f" % (
-    str(number_of_correct_pred), number_of_correct_pred / total_patch_num))
+    str(number_of_correct_pred), train_predict_accuracy))
     if sanity_check:
         print("Evaluating on training set")
         # at this point it would be cool to evaluate the whole train set, the accuracy and loss should correspond to the
@@ -213,6 +231,24 @@ def find_discriminative_patches(slide_list, slide_label_list, slide_dimension_li
         #                                          steps=train_total_number_of_patches // batch_size)
         # print("Evaluation Accuracy: %s" % total_eval[1])
 
+    ### Testing MAX predict ###
+    predictions = list(map(label_encoder.inverse_transform, list(map(np.argmax, train_histograms))))
+    train_max_accuracy = accuracy_score(slide_label_list, predictions)
+    # print(accuracy)
+    confusion = confusion_matrix(slide_label_list, predictions)
+    print("Max Accuracy: %0.5f" % train_max_accuracy)
+    print("Max Confusion: \n%s" % str(confusion))
+
+    logreg_model = train_logreg.train_logreg_from_histograms_and_labels(train_histograms, slide_label_list)
+    train_logreg_acccuracy, train_logreg_confusion = train_logreg.test_given_logreg(train_histograms, slide_label_list, logreg_model)
+    print("LogReg Accuracy: %0.5f" % train_logreg_acccuracy)
+    print("LogReg Confusion: \n%s" % str(train_logreg_confusion))
+
+    if logreg_model_savepath is not None:
+        train_logreg.save_logreg_model(logreg_model, logreg_model_savepath + "_" + str(epochnum) + ".model")
+
+
+    ### End Testing MAX predict ###
     overall_histo = [sum(np.asarray(train_histograms)[:, 0]),
                      sum(np.asarray(train_histograms)[:, 1]),
                      sum(np.asarray(train_histograms)[:, 2]),
@@ -280,7 +316,7 @@ def find_discriminative_patches(slide_list, slide_label_list, slide_dimension_li
     disc_patches = sum(np.count_nonzero(h) for h in H)
 
 
-    return H, disc_patches
+    return H, disc_patches, train_predict_accuracy, train_max_accuracy, train_logreg_acccuracy
 
 def train_on_discriminative_patches(train_slidelist, H, num_epochs, num_patches, iterator_handle_ph, batch_size,
                                     train_op, loss_op, accuracy_op,
@@ -303,10 +339,12 @@ def train_on_discriminative_patches(train_slidelist, H, num_epochs, num_patches,
 
     train_iterator_handle = sess.run(train_iterator.string_handle())
 
-    train.train_given_net(iterator_handle_ph, train_iterator_handle,
+    train_accuracy = train.train_given_net(iterator_handle_ph, train_iterator_handle,
                         num_patches, train_iterator,
                         train_op, loss_op, accuracy_op, keep_prob_ph, learning_rate_ph, is_training_ph,
-                        num_epochs=num_epochs, batch_size=batch_size, dropout_ratio=dropout_ratio, learning_rate=learning_rate, sess=sess)
+                        num_epochs=num_epochs, batch_size=batch_size, dropout_ratio=dropout_ratio, learning_rate=learning_rate, sess=sess,
+                          val_iterator=train_iterator, val_iterator_handle=train_iterator_handle, val_iterator_len=num_patches)
+    return train_accuracy
 
 
 def initialize_h(slidelist):
