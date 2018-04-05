@@ -97,7 +97,7 @@ def train_net(train_patchlist, validation_patchlist, num_epochs=2, batch_size=64
         saver.save(sess, savepath)
 
 
-def train_given_net(iterator_handle, train_iterator_handle,
+def train_given_net(iterator_handle_ph, train_iterator_handle,
                     train_iterator_len, train_iterator,
                     train_op, loss_op, accuracy_op, keep_prob_ph, learning_rate_ph, is_training,
                     val_iterator_handle=None, val_iterator_len=None, val_iterator=None,
@@ -122,7 +122,7 @@ def train_given_net(iterator_handle, train_iterator_handle,
                                           feed_dict={keep_prob_ph: (1 - dropout_ratio),
                                                      learning_rate_ph: learning_rate,
                                                      is_training: True,
-                                                     iterator_handle: train_iterator_handle})
+                                                     iterator_handle_ph: train_iterator_handle})
 
                 util.update_print(
                     "Training, Epoch: %0.f -- Loss: %0.5f, Acc: %0.5f, %0.d / %0.d" %
@@ -133,9 +133,11 @@ def train_given_net(iterator_handle, train_iterator_handle,
             except tf.errors.OutOfRangeError:
                 print("End of training dataset.")
                 break
+        train_accuracy = sum(np.asarray(batch_train_acc)) / len(batch_train_acc)
+
         print("Epoch %0.d - Training Summary -- Loss: %0.5f, Acc: %0.5f" %
-              (epoch, sum(np.asarray(batch_train_err)) / len(batch_train_err),
-               sum(np.asarray(batch_train_acc)) / len(batch_train_acc)))
+              (epoch+1, sum(np.asarray(batch_train_err)) / len(batch_train_err),
+               train_accuracy))
 
         if val_iterator is not None:
             i = 1
@@ -148,16 +150,19 @@ def train_given_net(iterator_handle, train_iterator_handle,
                     err, acc = sess.run([loss_op, accuracy_op],
                                         feed_dict={keep_prob_ph: (1 - dropout_ratio),
                                                    is_training: False,
-                                                   iterator_handle: val_iterator_handle})
-                    util.update_print(
-                        "Validation, Epoch: %0.f -- Loss: %0.5f, Acc: %0.5f, %0.d / %0.d" %
-                        (epoch + 1, err, acc, i, len(val_iterator_len) // batch_size + 1))
+                                                   iterator_handle_ph: val_iterator_handle})
+                    # util.update_print(
+                    #     "Validation, Epoch: %0.f -- Loss: %0.5f, Acc: %0.5f, %0.d / %0.d" %
+                    #     (epoch + 1, err, acc, i, val_iterator_len // batch_size + 1))
                     i = i + 1
                     batch_val_acc.append(acc)
                     batch_val_err.append(err)
                 except tf.errors.OutOfRangeError:
                     print("End of validation dataset.")
                     break
+            val_accuracy = sum(np.asarray(batch_val_acc)) / len(batch_val_acc)
             print("Epoch %0.d - Validation Summary -- Loss: %0.5f, Acc: %0.5f" %
-                  (epoch, sum(np.asarray(batch_val_err)) / len(batch_val_err),
-                   sum(np.asarray(batch_val_acc)) / len(batch_val_acc)))
+                  (epoch+1, sum(np.asarray(batch_val_err)) / len(batch_val_err),
+                   val_accuracy))
+
+    return train_accuracy, val_accuracy
