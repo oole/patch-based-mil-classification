@@ -28,7 +28,7 @@ def predict_given_net(iterator_handle,
             batch_pred_y_pred.extend(y_pred)
             batch_pred_y_argmax.extend(y_argmax)
         except tf.errors.OutOfRangeError:
-            print("End of validation dataset.")
+            print("End of prediction dataset.")
             break
         i += 1
     return batch_pred_y_pred, batch_pred_y_argmax
