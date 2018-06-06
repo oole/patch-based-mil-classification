@@ -3,23 +3,23 @@ import tensorflow as tf
 import numpy as np
 import util
 import netutil
+import data_tf
 
-
-def train_net(train_patchlist, validation_patchlist, num_epochs=2, batch_size=64, do_augment=True,
-              dropout_ratio=0.5, lr=0.0005, savepath=None, shuffle_buffer_size=1984, loadpath=None, model_name="modelname", sess=tf.Session()):
+def train_net(train_patchlist , validation_patchlist=None, getlabel_train=data_tf.getlabel_new, getlabel_val=data_tf.getlabel, num_epochs=2, batch_size=64, do_augment=True,
+              dropout_ratio=0.5, lr=0.0005, savepath=None, shuffle_buffer_size=1984, loadpath=None, model_name="modelname", sess=tf.Session(),):
 
     if do_augment:
         # TODO img_dataset_augment
         train_dataset = dataset.img_dataset_augment(train_patchlist, batch_size=batch_size,
-                                                    shuffle_buffer_size=shuffle_buffer_size, shuffle=True)
+                                                    shuffle_buffer_size=shuffle_buffer_size, shuffle=True, getlabel = getlabel_train)
         train_iterator = train_dataset.make_initializable_iterator()
     else:
         train_dataset = dataset.img_dataset(train_patchlist, batch_size=batch_size,
-                                                    shuffle_buffer_size=shuffle_buffer_size, shuffle=True)
+                                                    shuffle_buffer_size=shuffle_buffer_size, shuffle=True, getlabel = getlabel_train)
         train_iterator = train_dataset.make_initializable_iterator()
 
     val_dataset = dataset.img_dataset(validation_patchlist, batch_size,
-                                      shuffle_buffer_size=len(validation_patchlist), shuffle=False)
+                                      shuffle_buffer_size=len(validation_patchlist), shuffle=False, getlabel=getlabel_val)
     val_iterator = val_dataset.make_initializable_iterator()
 
     iterator_handle, iterator_access, proxy_iterator = dataset.proxy_iterator(sess, train_iterator, val_iterator)

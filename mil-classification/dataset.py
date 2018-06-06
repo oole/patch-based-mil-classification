@@ -33,7 +33,10 @@ def input_parser_imglabel_augment(img_path, img_label):
     img_flip_ud = tf.image.random_flip_up_down(img_flip_lr)
     random_x = randint(1, 100)
     random_y = randint(1, 100)
+    # random_x = 1
+    # random_y = 1
     img_cropped = tf.image.crop_to_bounding_box(img_flip_ud, random_x, random_y, 400, 400)
+    # tf.image.central_crop
     img_standard = tf.image.per_image_standardization(img_cropped)
     return img_standard, one_hot
 
@@ -54,17 +57,17 @@ def slidelist_to_patchlist(slidelist, H = None):
     return patches
 
 
-def get_labels_for_patches(patches):
+def get_labels_for_patches(patches, getlabel):
     labels = []
     labelencoder = data_tf.labelencoder()
     for patch in patches:
-        labels.append(data_tf.getlabel(patch))
+        labels.append(getlabel(patch))
     encoded_labels = labelencoder.transform(labels)
     return encoded_labels
 
 
-def img_dataset(images, batch_size, shuffle_buffer_size=None, shuffle=False):
-    labels = get_labels_for_patches(images)
+def img_dataset(images, batch_size, getlabel, shuffle_buffer_size=None, shuffle=False):
+    labels = get_labels_for_patches(images, getlabel=getlabel)
     if len(labels) != len(images):
         raise Exception("Labels do not correspond to images")
     if shuffle and shuffle_buffer_size is None:
@@ -78,8 +81,8 @@ def img_dataset(images, batch_size, shuffle_buffer_size=None, shuffle=False):
     return tr_data
 
 
-def img_dataset_augment(images, batch_size, shuffle_buffer_size=None, shuffle=False):
-    labels = get_labels_for_patches(images)
+def img_dataset_augment(images, batch_size,  getlabel, shuffle_buffer_size=None, shuffle=False,):
+    labels = get_labels_for_patches(images, getlabel)
     if len(labels) != len(images):
         raise Exception("Labels do not correspond to images")
     if shuffle and shuffle_buffer_size is None:
