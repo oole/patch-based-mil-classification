@@ -6,7 +6,7 @@ import numpy as np
 
 def predict_given_net(iterator_handle,
                       pred_iterator_handle, pred_iterator_len,
-                      y_pred_op, y_argmax_op,
+                      y_pred_op, y_pred_prob_op, y_argmax_op,
                       keep_prob_ph, is_training_ph,
                       batch_size=64, dropout_ratio=0.5, sess=tf.Session):
 
@@ -15,10 +15,11 @@ def predict_given_net(iterator_handle,
     # Do non verbose_validation
     batch_pred_y_pred = []
     batch_pred_y_argmax = []
+    batch_pred_y_pred_prob = []
     i=1
     while True:
         try:
-            y_pred, y_argmax = sess.run([y_pred_op, y_argmax_op],
+            y_pred, y_pred_prob, y_argmax = sess.run([y_pred_op, y_pred_prob_op, y_argmax_op],
                                         feed_dict={keep_prob_ph: (1 - dropout_ratio),
                                                    is_training_ph: False,
                                                    iterator_handle: pred_iterator_handle})
@@ -27,11 +28,12 @@ def predict_given_net(iterator_handle,
                 (i, pred_iterator_len // batch_size + 1))
             batch_pred_y_pred.extend(y_pred)
             batch_pred_y_argmax.extend(y_argmax)
+            batch_pred_y_pred_prob.extend(y_pred_prob)
         except tf.errors.OutOfRangeError:
             print("End of prediction dataset.")
             break
         i += 1
-    return batch_pred_y_pred, batch_pred_y_argmax
+    return batch_pred_y_pred, batch_pred_y_pred_prob, batch_pred_y_argmax
 
 
 def histogram_for_predictions(predictions):
