@@ -29,7 +29,7 @@ def train_net(train_patchlist, validation_patchlist, num_epochs=2, batch_size=64
 
     x, y = proxy_iterator.get_next()
 
-    train, loss, y, accuracy, x, keep_prob, learning_rate, is_training, y_pred, y_argmax = netutil.build_model(
+    train, loss, y, accuracy, x, keep_prob, learning_rate, is_training, y_pred, y_argmax, y_pred_prob = netutil.build_model(
         model_name, x, y, use_bn_1=True, use_bn_2=True, use_dropout_1=True, use_dropout_2=True)
 
     # Fix BN update problem

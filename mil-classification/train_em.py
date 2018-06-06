@@ -56,7 +56,7 @@ def emtrain(train_datapath, val_datapath,
 
 
 
-        train_op, loss_op, y, accuracy_op, x, keep_prob_ph, learning_rate_ph, is_training_ph, y_pred_op, y_argmax_op = \
+        train_op, loss_op, y, accuracy_op, x, keep_prob_ph, learning_rate_ph, is_training_ph, y_pred_op, y_argmax_op, y_pred_prob_op = \
             netutil.build_model(model_name, x, y, use_bn_1=True, use_bn_2=True, use_dropout_1=True, use_dropout_2=True)
 
         # model saver
@@ -72,7 +72,7 @@ def emtrain(train_datapath, val_datapath,
                 find_discriminative_patches(train_slidelist, train_slide_label,
                                             train_slide_dimensions, total_num_train_patches,
                                             spatial_smoothing,
-                                            y_pred_op, y_argmax_op, batch_size, dropout_ratio, label_encoder,
+                                            y_pred_op, y_pred_prob_op,y_argmax_op, batch_size, dropout_ratio, label_encoder,
                                             keep_prob_ph, is_training_ph, proxy_iterator_handle_ph,
                                             sess, sanity_check=sanity_check, do_augment=do_augment, logreg_model_savepath=logreg_savepath, epochnum=epochnum)
             print("Discriminative patches: " + repr(disc_patches_new) + ". Before: " +  repr(old_disc_patches))
@@ -100,7 +100,7 @@ def emtrain(train_datapath, val_datapath,
 
 
 def find_discriminative_patches(slide_list, slide_label_list, slide_dimension_list, total_patch_num, spatial_smoothing,
-                                y_pred_op, y_argmax_op, batch_size, dropout_ratio, label_encoder,
+                                y_pred_op, y_pred_prob_op, y_argmax_op, batch_size, dropout_ratio, label_encoder,
                                 keep_prob_ph, is_training_ph, iterator_handle_ph,
                                 sess, sanity_check=False, do_augment=False, logreg_model_savepath=None, epochnum=None):
     H = initialize_h(slide_list)
@@ -159,9 +159,9 @@ def find_discriminative_patches(slide_list, slide_label_list, slide_dimension_li
 
         pred_iterator_handle = sess.run(pred_iterator.string_handle())
 
-        slide_y_pred, slide_y_pred_argmax = predict.predict_given_net(iterator_handle_ph,
+        slide_y_pred, slide_y_pred_prob, slide_y_pred_argmax = predict.predict_given_net(iterator_handle_ph,
                                                                       pred_iterator_handle, pred_iterator_len,
-                                                                      y_pred_op, y_argmax_op,
+                                                                      y_pred_op, y_pred_prob_op, y_argmax_op,
                                                                       keep_prob_ph, is_training_ph,
                                                                       batch_size=batch_size, dropout_ratio=dropout_ratio, sess=sess)
 
@@ -181,7 +181,7 @@ def find_discriminative_patches(slide_list, slide_label_list, slide_dimension_li
             print("Label encoding:" + str(label_encoder.classes_))
             print(pred_histogram)
             """ end of info"""
-        true_label_pred_values = np.asarray(slide_y_pred)[:,0]
+        true_label_pred_values = np.asarray(slide_y_pred_prob)[:,0]
 
         ## Spatial smoothing
         if (spatial_smoothing):

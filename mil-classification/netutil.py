@@ -91,9 +91,11 @@ def build_model(scope, x, y,
 
         #y = tf.placeholder(tf.uint8, [None, 6])
 
+        # Prediction probabilities for classes
+        y_pred_prob = (tf.nn.softmax(y_pred))
+
         # one_hot_y = tf.one_hot(y, 6)
         loss = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits_v2(labels=y, logits = y_pred))
-
         learning_rate = tf.placeholder(tf.float32)
 
         train = tf.train.AdamOptimizer(learning_rate).minimize(loss)
@@ -102,7 +104,7 @@ def build_model(scope, x, y,
         correct_prediction = tf.equal(y_argmax, tf.argmax(y, 1))
         accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
 
-        return train, loss, y, accuracy, x, keep_prob, learning_rate, is_training, y_pred, y_argmax
+        return train, loss, y, accuracy, x, keep_prob, learning_rate, is_training, y_pred, y_argmax, y_pred_prob
 
 
 
