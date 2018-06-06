@@ -2,11 +2,7 @@ import csv
 from sklearn.preprocessing import LabelEncoder
 import os
 import numpy as np
-import openslide as osl
 import pickle
-from skimage import color
-from skimage.io import imsave, imread, imshow, show
-from keras import utils
 import re
 
 
@@ -29,6 +25,26 @@ def getlabel(patch):
         label = "GBM"
     return label
 
+"""
+Check patch name for classname and return it
+"""
+def getlabel_new(patch):
+    label = ""
+    if "class-OA" in patch:
+        label = "OA"
+    elif "class-DA" in patch:
+        label = "DA"
+    elif "class-AA" in patch:
+        label = "AA"
+    elif "class-OD" in patch:
+        label = "OD"
+    elif "class-AO" in patch:
+        label = "AO"
+    elif "class-GBM" in patch:
+        label = "GBM"
+    else:
+        raise ValueError("label could not be found")
+    return label
 
 """
 Returns the labelencoder for LGG, GBM
@@ -183,6 +199,18 @@ def collect_data(datapath, batch_size, filter_batch_size=True):
     return slidelist, slide_dimensions, patchnumber, slide_label
 
 
+def loaddata_csv(dataPath, slide_index=0, class_index=1):
+    data = csv.reader(open(dataPath))
+    slidepaths, labels, dimensions = [], [], []
+    for row in data:
+        slide = row[slide_index]
+        label = row[class_index]
+        slidepaths.append(slide)
+        labels.append(label)
+        slide_info = open(slide + "/info.txt").read().split("\n")
+        dimensions.append((int(slide_info[0][4:]), int(slide_info[1][4:])))
+    return slidepaths, labels, dimensions
+
 def collect_flat_data(datapath):
     patch_paths = []
     patches = os.listdir(datapath)
@@ -190,7 +218,24 @@ def collect_flat_data(datapath):
         if "tif" in patch:
             patch_paths.append(datapath + "/" + patch)
     # at this point we have a list of lists containing the patches
-
-
-
     return patch_paths
+
+def collect_data_csv(train_csv):
+    slidepaths, labels, dimensions = loaddata_csv(train_csv)
+
+    number_of_patches = 0
+    slidelist = []
+    for slide in slidepaths:
+        patchlist = []
+        patches = os.listdir(slide)
+        for patch in patches:
+            if "patch" in patch:
+                patchpath = slide + "/" + patch
+                if "jpg" in patch:
+                    patchlist.append(patchpath)
+        number_of_patches += len(patchlist)
+        slidelist.append(patchlist)
+
+
+    return slidelist, dimensions, number_of_patches, labels
+
