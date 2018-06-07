@@ -6,7 +6,7 @@ import netutil
 import data_tf
 
 def train_net(train_patchlist , validation_patchlist=None, getlabel_train=data_tf.getlabel_new, getlabel_val=data_tf.getlabel, num_epochs=2, batch_size=64, do_augment=True,
-              dropout_ratio=0.5, lr=0.0005, savepath=None, shuffle_buffer_size=1984, loadpath=None, model_name="modelname", sess=tf.Session(),):
+              dropout_ratio=0.5, lr=0.0005, savepath=None, shuffle_buffer_size=1984, loadpath=None, model_name="modelname", sess=tf.Session(), log_savepath=None):
 
     if do_augment:
         # TODO img_dataset_augment
@@ -56,10 +56,10 @@ def train_net(train_patchlist , validation_patchlist=None, getlabel_train=data_t
             try:
 
                 _, err, acc, _, = sess.run([train, loss, accuracy, extra_up_op],
-                                          feed_dict={keep_prob: (1 - dropout_ratio),
-                                                     learning_rate: lr,
-                                                     is_training: True,
-                                                     iterator_handle: train_iterator_handle})
+                                           feed_dict={keep_prob: (1 - dropout_ratio),
+                                                      learning_rate: lr,
+                                                      is_training: True,
+                                                      iterator_handle: train_iterator_handle})
 
                 util.update_print(
                     "Training, Epoch: %0.f -- Loss: %0.5f, Acc: %0.5f, %0.d / %0.d" %
@@ -93,6 +93,7 @@ def train_net(train_patchlist , validation_patchlist=None, getlabel_train=data_t
         print("Epoch %0.d - Validation Summary -- Loss: %0.5f, Acc: %0.5f" %
               (epoch+1, sum(np.asarray(batch_val_err)) / len(batch_val_err),
                sum(np.asarray(batch_val_acc)) / len(batch_val_acc)))
+        util.write_log_file(log_savepath, epochnum=epoch, train_accuracy=(sum(np.asarray(batch_train_acc)) / len(batch_train_acc)), val_accuracy=(sum(np.asarray(batch_val_acc)) / len(batch_val_acc)))
     if savepath is not None:
         saver.save(sess, savepath)
 

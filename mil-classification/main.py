@@ -129,7 +129,7 @@ def train_normal():
                                                   savepath=simple_train_savepath, do_augment=True, model_name=model_name)
 
 
-def train_augment_csv(train_csv="/media/oole/Data/train.csv", test_csv="/media/oole/Data/test.csv"):
+def train_augment_csv(train_csv="/home/oole/Data/nice_data/train.csv", test_csv="/home/oole/Data/nice_data/test.csv"):
     val_datapath = "/home/oole/Data/validation/patient_patches_jpg"
 
     simple_train_savepath = "/home/oole/tfnetsave/tfnet_em_full"
@@ -146,9 +146,9 @@ def train_augment_csv(train_csv="/media/oole/Data/train.csv", test_csv="/media/o
 
     label_encoder = data_tf.labelencoder()
 
-    train_slidelist, train_dimensions, train_number_of_patches, train_labels = data_tf.collect_data_csv("/media/oole/Data/train.csv")
+    train_slidelist, train_dimensions, train_number_of_patches, train_labels = data_tf.collect_data_csv(train_csv)
 
-    test_slidelist, test_dimensions, test_number_of_patches, test_labels = data_tf.collect_data_csv("/media/oole/Data/test.csv")
+    test_slidelist, test_dimensions, test_number_of_patches, test_labels = data_tf.collect_data_csv(test_csv)
     val_slidelist, _, val_number_of_patches, val_labels = data_tf.collect_data(val_datapath, batch_size)
 
 
@@ -159,9 +159,9 @@ def train_augment_csv(train_csv="/media/oole/Data/train.csv", test_csv="/media/o
     np.random.shuffle(val_patches)
 
     # Initial training
-    train_accuracy, val_accuracy = train.train_net(train_patches, val_patches, num_epochs=2, batch_size=batch_size,
+    train_accuracy, val_accuracy = train.train_net(train_patches, val_patches, num_epochs=10, batch_size=batch_size,
                                                   savepath=simple_train_savepath, do_augment=True, model_name=model_name,
-                                                   getlabel_train=data_tf.getlabel_new, getlabel_val=data_tf.getlabel)
+                                                   getlabel_train=data_tf.getlabel_new, getlabel_val=data_tf.getlabel, log_savepath=logfile_path)
 
     util.write_log_file(logfile_path, train_accuracy=train_accuracy, val_accuracy=val_accuracy)
 
