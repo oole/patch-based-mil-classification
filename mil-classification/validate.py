@@ -1,5 +1,4 @@
 import tensorflow as tf
-import util
 import numpy as np
 
 
@@ -33,3 +32,22 @@ def validate_existing_net(iterator_handle, input_iterator, iterator_len,
     print("Validation Summary -- Loss: %0.5f, Acc: %0.5f" %
           (sum(np.asarray(batch_val_err)) / len(batch_val_err),
            sum(np.asarray(batch_val_acc)) / len(batch_val_acc)))
+
+
+# For validation the slidelist should be 400x400 patches, so that the evaluation is consistent
+def evaluate_max_prediction(iterator_handle, validation_slidelist, validation_labels):
+    predicted_labels = []
+    for patches in validation_slidelist:
+        # CREATE ITERATOR
+        number_of_patches = len(patches)
+
+
+        # PREDICT LIST OF PATCHES
+
+        # MAJORITY VOTE
+
+        # ADD TO PREDICTED LABELS
+
+
+    # calculate accuracy
+    return #accuracy and confusion matrix
