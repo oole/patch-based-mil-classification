@@ -104,7 +104,70 @@ def build_model(scope, x, y,
         correct_prediction = tf.equal(y_argmax, tf.argmax(y, 1))
         accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
 
-        return train, loss, y, accuracy, x, keep_prob, learning_rate, is_training, y_pred, y_argmax, y_pred_prob
+        return NetAccess(train, loss, y, accuracy, x, keep_prob, learning_rate, is_training, y_pred, y_argmax, y_pred_prob)
+
+class NetAccess:
+    def __init__(self, train, loss, y, accuracy, x, keep_prob, learning_rate, is_training, y_pred, y_argmax, y_pred_prob, batchSize=64, shuffleBufferSize=2048):
+        self.train = train
+        self.loss= loss
+        self.accuracy = accuracy
+        self.x = x
+        self.keep_prob = keep_prob
+        self.learning_rate = learning_rate
+        self.is_training = is_training
+        self.y_pred = y_pred
+        self.y_argmax = y_argmax
+        self.y_pred_prob = y_pred_prob
+        self.batchSize = batchSize
+        self.shuffleBufferSize = shuffleBufferSize
+
+    def getTrain(self):
+        return self.train
+
+    def getLoss(self):
+        return self.loss
+
+    def getAccuracy(self):
+        return self.accuracy
+
+    def getX(self):
+        return self.x
+
+    def getKeepProb(self):
+        return self.keep_prob
+
+    def getLearningRate(self):
+        return self.learning_rate
+
+    def getIsTraining(self):
+        return self.is_training
+
+    def getYPred(self):
+        return self.y_pred
+
+    def getYArgmax(self):
+        return self.y_argmax
+
+    def getYPredProb(self):
+        return self.y_pred_prob
+
+    def setIteratorHandle(self, iterator_handle):
+        self.iteratorHandle = iterator_handle
+
+    def getIteratorHandle(self):
+        return self.iteratorHandle
+
+    def setUpdateOp(self, updateOp):
+        self.updateOp = updateOp
+
+    def getUpdateOp(self):
+        return self.updateOp
+
+    def getBatchSize(self):
+        return self.batchSize
+
+    def getShuffleBufferSize(self):
+        return self.shuffleBufferSize
 
 
 
