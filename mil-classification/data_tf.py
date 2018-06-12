@@ -4,6 +4,8 @@ import os
 import numpy as np
 import pickle
 import re
+from sklearn.model_selection import train_test_split
+
 
 
 """
@@ -237,5 +239,43 @@ def collect_data_csv(train_csv):
         slidelist.append(patchlist)
 
 
-    return slidelist, dimensions, number_of_patches, labels
+    return SlideData(slidelist, dimensions, number_of_patches, labels)
 
+
+class SlideData:
+    def __init__(self, slideList, slideDimensionList, numberOfPatches, slideLabelList):
+        self.slideList= slideList
+        self.slideDimensionList = slideDimensionList
+        self.numberOfPatches = numberOfPatches
+        self.slideLabelList = slideLabelList
+
+    def getSlideList(self):
+        return self.slideList
+
+    def getSlideDimensionList(self):
+        return self.slideDimensionList
+
+    def getNumberOfPatches(self):
+        return self.numberOfPatches
+
+    def getSlideLabelList(self):
+        return self.slideLabelList
+
+def splitSlideLists(trainSlideData, valSlideData):
+    splitResult = train_test_split(trainSlideData.getSlideList(), valSlideData.getSlideList(),
+                                   trainSlideData.getSlideDimensionList(), valSlideData.getSlideDimensionList(),
+                                   trainSlideData.getSlideLabelList(), valSlideData.getSlideLabelList(),
+                                   stratify=trainSlideData.getSlideLabelList())
+    trainSlideList = splitResult[0]
+    valSlideList = splitResult[3]
+    trainDimList = splitResult[4]
+    valDimList = splitResult[7]
+    trainLabelList = splitResult[8]
+    valLabelList = splitResult[11]
+
+    if (len(trainSlideList) != trainDimList != trainLabelList):
+        raise ValueError("Split is wrong")
+    if (len(valSlideList) != valDimList != valLabelList):
+        raise ValueError("Split is wrong")
+
+    return SlideData(trainSlideList, trainDimList, trainSlideList.size, trainLabelList), SlideData(valSlideList, valDimList, valSlideList.size, valLabelList)
