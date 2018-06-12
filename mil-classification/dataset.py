@@ -4,14 +4,12 @@ from random import randint
 
 
 def input_parser(img_path):
-    label_encoder = data_tf.labelencoder()
-    label =  label_encoder.transform([data_tf.getlabel(str(img_path))])
-    one_hot = tf.one_hot(label, 6)
-
     img_file = tf.read_file(img_path)
     img_decoded = tf.image.decode_image(img_file, channels=3)
+    img_decoded = tf.image.convert_image_dtype(img_decoded, tf.float32)
+    img_decoded = tf.image.per_image_standardization(img_decoded)
 
-    return img_decoded, one_hot
+    return img_decoded
 
 
 def input_parser_imglabel(img_path, img_label):
@@ -80,6 +78,17 @@ def img_dataset(images, batch_size, getlabel, shuffle_buffer_size=None, shuffle=
     tr_data = tr_data.batch(batch_size)
     return tr_data
 
+def img_dataset_nolabel(images, batch_size, shuffle_buffer_size=None, shuffle=False):
+    if shuffle and shuffle_buffer_size is None:
+        raise Exception("If shuffle==True shuffle_buffer_size must be set!")
+
+    tr_data = tf.data.Dataset.from_tensor_slices(images)
+    tr_data = tr_data.map(input_parser)
+    if shuffle:
+        tr_data = tr_data.shuffle(buffer_size=shuffle_buffer_size)
+    tr_data = tr_data.batch(batch_size)
+    return tr_data
+
 
 def img_dataset_augment(images, batch_size,  getlabel, shuffle_buffer_size=None, shuffle=False,):
     labels = get_labels_for_patches(images, getlabel)
@@ -97,8 +106,6 @@ def img_dataset_augment(images, batch_size,  getlabel, shuffle_buffer_size=None,
 
 
 def proxy_iterator(sess, *iterators):
-    if len(iterators) < 2:
-        raise ValueError("At least two iterators needed in order to chain them")
     handle = tf.placeholder(tf.string, shape=[])
     iterator = tf.data.Iterator.from_string_handle(handle, output_types=iterators[0].output_types, output_shapes=iterators[0].output_shapes)
     access = list(map(lambda x: sess.run(x.string_handle()), iterators))
