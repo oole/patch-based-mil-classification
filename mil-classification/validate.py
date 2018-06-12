@@ -1,6 +1,8 @@
 import tensorflow as tf
 import numpy as np
-
+import util
+import predict
+import dataset
 
 
 def validate_existing_net(iterator_handle, input_iterator, iterator_len,
@@ -35,17 +37,22 @@ def validate_existing_net(iterator_handle, input_iterator, iterator_len,
 
 
 # For validation the slidelist should be 400x400 patches, so that the evaluation is consistent
-def evaluate_max_prediction(iterator_handle, validation_slidelist, validation_labels):
+def evaluate_max_prediction(iterator_handle, validation_slidelist, validation_labels, netAcc, label_encoder):
     predicted_labels = []
     for patches in validation_slidelist:
         # CREATE ITERATOR
         number_of_patches = len(patches)
+        val_dataset = dataset.img_dataset(patches, batch_size=netAcc.getBatchSize(),
+                                          shuffle_buffer_size=netAcc.getShuffleBufferSize(), shuffle=False)
 
+        val_iterator = val_dataset.make_initializable_iterator()
 
         # PREDICT LIST OF PATCHES
+        batch_pred_y_pred, batch_pred_y_pred_prob, batch_pred_y_argmax = predict.predict_given_net(iterator_handle=iterator_handle,
+                                  pred_iterator_handle=val_iterator, pred_iterator_len=number_of_patches,)
 
         # MAJORITY VOTE
-
+        predict.predict_vote(batch_pred_y_argmax, label_encoder)
         # ADD TO PREDICTED LABELS
 
 
