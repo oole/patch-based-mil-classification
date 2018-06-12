@@ -2,12 +2,12 @@ import tensorflow as tf
 import util
 from collections import Counter
 import numpy as np
-
+from sklearn.metrics import accuracy_score, confusion_matrix
+import netutil
 
 def predict_given_net(iterator_handle,
                       pred_iterator_handle, pred_iterator_len,
-                      y_pred_op, y_pred_prob_op, y_argmax_op,
-                      keep_prob_ph, is_training_ph,
+                      netAcc,
                       batch_size=64, dropout_ratio=0.5, sess=tf.Session):
 
     # sess.run(pred_iterator.initializer)
@@ -17,11 +17,12 @@ def predict_given_net(iterator_handle,
     batch_pred_y_argmax = []
     batch_pred_y_pred_prob = []
     i=1
+
     while True:
         try:
-            y_pred, y_pred_prob, y_argmax = sess.run([y_pred_op, y_pred_prob_op, y_argmax_op],
-                                        feed_dict={keep_prob_ph: (1 - dropout_ratio),
-                                                   is_training_ph: False,
+            y_pred, y_pred_prob, y_argmax = sess.run([netAcc.getYPred(), netAcc.getYPredProb(), netAcc.getYArgmax()],
+                                        feed_dict={netAcc.getKeepProb(): (1 - dropout_ratio),
+                                                   netAcc.getIsTraining(): False,
                                                    iterator_handle: pred_iterator_handle})
             util.update_print(
                 "Prediction: batch %0.d / %0.d" %
@@ -53,3 +54,9 @@ def get_count(counter, number):
     if num is None:
         num = 0
     return num
+
+def predict_vote(pred_list, label_encoder):
+    histogram = histogram_for_predictions(pred_list)
+    prediction =  label_encoder.inverse_transform(np.argmax(histogram))
+    return prediction
+

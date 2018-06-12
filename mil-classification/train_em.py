@@ -18,7 +18,7 @@ import util
 shuffle_buffer_size = 2000
 
 
-def emtrain(train_datapath, val_datapath,
+def emtrain(trainSlideData, valSlideData,
             loadpath, savepath,
             label_encoder, batch_size,
             initial_epochnum=0,
@@ -29,35 +29,32 @@ def emtrain(train_datapath, val_datapath,
             dropout_ratio=0.5,
             learning_rate=0.0005, sanity_check=False, logfile_path=None, logreg_savepath=None):
 
-    train_slidelist, train_slide_dimensions, total_num_train_patches, train_slide_label = data_tf.collect_data(train_datapath, batch_size)
-
-    val_slidelist, val_slide_dimension, val_slide_num, val_slide_label = data_tf.collect_data(val_datapath,
-                                                                                                     batch_size)
     iteration = 0
 
     epochnum = initial_epochnum
-    get_per_class_instances(train_slidelist, train_slide_label, label_encoder)
+    # get_per_class_instances(trainSlideData, label_encoder)
 
-    old_disc_patches = total_num_train_patches
+    splitTrainSlideData, splitValSlideData = data_tf.splitSlideLists(trainSlideData, valSlideData)
+
+    old_disc_patches = splitTrainSlideData.getNumberOfPatches()
     with tf.Session() as sess:
         ## create iterator
-        val_patches = dataset.slidelist_to_patchlist(val_slidelist)
-
-        val_dataset = dataset.img_dataset(val_patches, batch_size=batch_size,
+        create_iterator_patch = dataset.slidelist_to_patchlist(splitTrainSlideData.getSlideList()[0])
+        create_iterator_dataset = dataset.img_dataset(create_iterator_patch, batch_size=batch_size,
                                                    shuffle_buffer_size=shuffle_buffer_size, shuffle=False)
-
-        val_iterator = val_dataset.make_one_shot_iterator()
-
+        create_iterator_iter = create_iterator_dataset.make_one_shot_iterator()
         proxy_iterator_handle_ph= tf.placeholder(tf.string, shape=[])
-        proxy_iterator = tf.data.Iterator.from_string_handle(proxy_iterator_handle_ph, output_types=val_iterator.output_types,
-                                                       output_shapes=val_iterator.output_shapes)
-
+        proxy_iterator = tf.data.Iterator.from_string_handle(proxy_iterator_handle_ph, output_types=create_iterator_iter.output_types,
+                                                       output_shapes=create_iterator_iter.output_shapes)
         x, y = proxy_iterator.get_next()
 
+        netAcc = netutil.build_model(model_name, x, y, use_bn_1=True, use_bn_2=True, use_dropout_1=True, use_dropout_2=True)
+        netAcc.setIteratorHandle(proxy_iterator_handle_ph)
+        extra_up_op = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
+        netAcc.setUpdateOp(extra_up_op)
 
 
-        train_op, loss_op, y, accuracy_op, x, keep_prob_ph, learning_rate_ph, is_training_ph, y_pred_op, y_argmax_op, y_pred_prob_op = \
-            netutil.build_model(model_name, x, y, use_bn_1=True, use_bn_2=True, use_dropout_1=True, use_dropout_2=True)
+
 
         # model saver
         saver = tf.train.Saver()
@@ -390,7 +387,7 @@ def get_patch_number(slides):
 
 
 
-def get_per_class_instances(slide_list, label_list, LE):
+def get_per_class_instances(trainSlideData, LE):
 
     num_0 = 0
     num_1 = 0
@@ -399,9 +396,11 @@ def get_per_class_instances(slide_list, label_list, LE):
     num_4 = 0
     num_5 = 0
 
-    for i in range(len(slide_list)):
-        slide = slide_list[i]
-        label = [label_list[i]]
+    slideList = trainSlideData.getSlideList()
+    labelList = trainSlideData.getLabelList()
+    for i in range(len(slideList)):
+        slide = slideList[i]
+        label = [labelList[i]]
         num_label = LE.transform(np.asarray(label))
         if num_label == 0:
             num_0 += len(slide)
