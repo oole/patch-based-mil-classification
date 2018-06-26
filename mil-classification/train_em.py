@@ -66,12 +66,10 @@ def emtrain(trainSlideData, valSlideData,
 
             ##
             H, disc_patches_new, train_predict_accuracy, train_max_accuracy, train_logreg_acccuracy = \
-                find_discriminative_patches(train_slidelist, train_slide_label,
-                                            train_slide_dimensions, total_num_train_patches,
+                find_discriminative_patches(splitTrainSlideData,
                                             spatial_smoothing,
-                                            y_pred_op, y_pred_prob_op,y_argmax_op, batch_size, dropout_ratio, label_encoder,
-                                            keep_prob_ph, is_training_ph, proxy_iterator_handle_ph,
-                                            sess, sanity_check=sanity_check, do_augment=do_augment, logreg_model_savepath=logreg_savepath, epochnum=epochnum)
+                                            netAcc,
+                                            sess, dropout_ratio=dropout_ratio, sanity_check=sanity_check, do_augment=do_augment, logreg_model_savepath=logreg_savepath, epochnum=epochnum)
             print("Discriminative patches: " + repr(disc_patches_new) + ". Before: " +  repr(old_disc_patches))
 
             gc.collect()
@@ -96,11 +94,15 @@ def emtrain(trainSlideData, valSlideData,
             break
 
 
-def find_discriminative_patches(slide_list, slide_label_list, slide_dimension_list, total_patch_num, spatial_smoothing,
-                                y_pred_op, y_pred_prob_op, y_argmax_op, batch_size, dropout_ratio, label_encoder,
-                                keep_prob_ph, is_training_ph, iterator_handle_ph,
-                                sess, sanity_check=False, do_augment=False, logreg_model_savepath=None, epochnum=None):
-    H = initialize_h(slide_list)
+def find_discriminative_patches(trainSlideData, netAccess, spatial_smoothing,
+                                sess, dropout_ratio=0.5,sanity_check=False, do_augment=False, logreg_model_savepath=None, epochnum=None):
+    slideList = trainSlideData.getSlideList()
+    slideLabelList = trainSlideData.getSlideLabelList()
+    labelEncoder = trainSlideData.getLabelEncoder()
+
+    batchSize = netAccess.getBatchSize()
+
+    H = initialize_h(slideList)
 
     # S image level argamx for true class
     S = []
@@ -126,41 +128,38 @@ def find_discriminative_patches(slide_list, slide_label_list, slide_dimension_li
 
     number_of_correct_pred = 0
     train_histograms = []
-    for i in range(len(slide_list)):
+    for i in range(trainSlideData.getNumberOfSlides()):
         # This is where the spatial structure should be recovered
         # We need to keep a list of discrimative or not
         print("------------------------------------------------------------------------")
-        print("Slide:  " + repr(i) + "/" + repr(len(slide_list) - 1))
+        print("Slide:  " + repr(i) + "/" + repr(trainSlideData.getNumberOfSlides() - 1))
         print("Predicting.")
         print("------------------------------------------------------------------------")
-        patches = slide_list[i]
+        patches = slideList[i]
         # get true label
-        label = [slide_label_list[i]]
+        label = [slideLabelList[i]]
 
         if label != np.asarray(data_tf.getlabel(patches[1])):
             raise Exception("ERROR, labels do not correspond")
 
-        num_label = label_encoder.transform(np.asarray(label))
+        num_label = labelEncoder.transform(np.asarray(label))
 
 
         pred_iterator_len = len(patches)
 
         if do_augment:
-            pred_dataset = dataset.img_dataset_augment(patches, batch_size=batch_size,
+            pred_dataset = dataset.img_dataset_augment(patches, batch_size=netAccess.,
                                                shuffle_buffer_size=shuffle_buffer_size, shuffle=False)
         else:
-            pred_dataset = dataset.img_dataset(patches, batch_size=batch_size,
+            pred_dataset = dataset.img_dataset(patches, batch_size=batchSize,
                                                        shuffle_buffer_size=shuffle_buffer_size, shuffle=False)
 
         pred_iterator = pred_dataset.make_one_shot_iterator()
 
         pred_iterator_handle = sess.run(pred_iterator.string_handle())
 
-        slide_y_pred, slide_y_pred_prob, slide_y_pred_argmax = predict.predict_given_net(iterator_handle_ph,
-                                                                      pred_iterator_handle, pred_iterator_len,
-                                                                      y_pred_op, y_pred_prob_op, y_argmax_op,
-                                                                      keep_prob_ph, is_training_ph,
-                                                                      batch_size=batch_size, dropout_ratio=dropout_ratio, sess=sess)
+        slide_y_pred, slide_y_pred_prob, slide_y_pred_argmax = predict.predict_given_net(pred_iterator_handle, pred_iterator_len, netAccess,
+                                                                      batch_size=batchSize, dropout_ratio=dropout_ratio, sess=sess)
 
         pred_histogram = predict.histogram_for_predictions(slide_y_pred_argmax)
         train_histograms.append(pred_histogram)
@@ -175,7 +174,7 @@ def find_discriminative_patches(slide_list, slide_label_list, slide_dimension_li
             train_histograms.append(pred_histogram)
 
             print("True label: " + data_tf.getlabel(patches[1]))
-            print("Label encoding:" + str(label_encoder.classes_))
+            print("Label encoding:" + str(labelEncoder.classes_))
             print(pred_histogram)
             """ end of info"""
         true_label_pred_values = np.asarray(slide_y_pred_prob)[:,0]
@@ -183,7 +182,7 @@ def find_discriminative_patches(slide_list, slide_label_list, slide_dimension_li
         ## Spatial smoothing
         if (spatial_smoothing):
             patch_coordinates = get_patch_coordinates(patches)
-            spatial_pred = get_spatial_predictions(slide_dimension_list[i], patches, true_label_pred_values)
+            spatial_pred = get_spatial_predictions(trainSlideData.getSlideDimensionList()[i], patches, true_label_pred_values)
             smooth_spatial_pred = gaussian_filter(spatial_pred, sigma=0.5)
             smoothed_predictions = get_patch_predictions_from_probability_map(smooth_spatial_pred, patch_coordinates)
             S.append(smoothed_predictions)
@@ -217,7 +216,7 @@ def find_discriminative_patches(slide_list, slide_label_list, slide_dimension_li
         else:
             Exception("probabilities could not be attributed")
 
-    train_predict_accuracy = number_of_correct_pred / total_patch_num
+    train_predict_accuracy = number_of_correct_pred / trainSlideData.getNumberOfPatches()
     print("Number of correct predictions: %s, corresponds to %0.3f" % (
     str(number_of_correct_pred), train_predict_accuracy))
     if sanity_check:
@@ -229,15 +228,15 @@ def find_discriminative_patches(slide_list, slide_label_list, slide_dimension_li
         # print("Evaluation Accuracy: %s" % total_eval[1])
 
     ### Testing MAX predict ###
-    predictions = list(map(label_encoder.inverse_transform, list(map(np.argmax, train_histograms))))
-    train_max_accuracy = accuracy_score(slide_label_list, predictions)
+    predictions = list(map(labelEncoder.inverse_transform, list(map(np.argmax, train_histograms))))
+    train_max_accuracy = accuracy_score(slideLabelList, predictions)
     # print(accuracy)
-    confusion = confusion_matrix(slide_label_list, predictions)
+    confusion = confusion_matrix(slideLabelList, predictions)
     print("Max Accuracy: %0.5f" % train_max_accuracy)
     print("Max Confusion: \n%s" % str(confusion))
 
-    logreg_model = train_logreg.train_logreg_from_histograms_and_labels(train_histograms, slide_label_list)
-    train_logreg_acccuracy, train_logreg_confusion = train_logreg.test_given_logreg(train_histograms, slide_label_list, logreg_model)
+    logreg_model = train_logreg.train_logreg_from_histograms_and_labels(train_histograms, slideLabelList)
+    train_logreg_acccuracy, train_logreg_confusion = train_logreg.test_given_logreg(train_histograms, slideLabelList, logreg_model)
     print("LogReg Accuracy: %0.5f" % train_logreg_acccuracy)
     print("LogReg Confusion: \n%s" % str(train_logreg_confusion))
 
@@ -262,13 +261,13 @@ def find_discriminative_patches(slide_list, slide_label_list, slide_dimension_li
 
     # Remove non discriminative patches
     # E STEP1
-    for i in range(len(slide_list)):
+    for i in range(trainSlideData.getNumberOfSlides()):
         print("------------------------------------------------------------------------")
-        print("Slide" + repr(i) + "/" + repr(len(slide_list) - 1))
+        print("Slide" + repr(i) + "/" + repr(trainSlideData.getNumberOfSlides() - 1))
         print("Find discriminizing.")
         print("------------------------------------------------------------------------")
-        label = [slide_label_list[i]]
-        num_label = label_encoder.transform(np.asarray(label))
+        label = [slideLabelList[i]]
+        num_label = labelEncoder.transform(np.asarray(label))
 
         # in paper:
         #   H_perc = P1 = 5%
@@ -298,7 +297,7 @@ def find_discriminative_patches(slide_list, slide_label_list, slide_dimension_li
 
         T = min([Hi, Ri])
         print("Hi= %0.5f, Ri= %0.5f, T= %0.5f" % (Hi, Ri, T))
-        patches = slide_list[i]
+        patches = slideList[i]
         positive_patches = 0
         for j in range(len(patches)):
             if S[i][j] < T:

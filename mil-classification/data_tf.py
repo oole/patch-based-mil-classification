@@ -243,11 +243,12 @@ def collect_data_csv(train_csv):
 
 
 class SlideData:
-    def __init__(self, slideList, slideDimensionList, numberOfPatches, slideLabelList):
+    def __init__(self, slideList, slideDimensionList, numberOfPatches, slideLabelList, labelEncoder):
         self.slideList= slideList
         self.slideDimensionList = slideDimensionList
         self.numberOfPatches = numberOfPatches
         self.slideLabelList = slideLabelList
+        self.labelEncoder = labelEncoder
 
     def getSlideList(self):
         return self.slideList
@@ -260,6 +261,12 @@ class SlideData:
 
     def getSlideLabelList(self):
         return self.slideLabelList
+
+    def getNumberOfSlides(self):
+        return len(self.slideList)
+
+    def getLabelEncoder(self):
+        return self.labelEncoder
 
 def splitSlideLists(trainSlideData, valSlideData):
     splitResult = train_test_split(trainSlideData.getSlideList(), valSlideData.getSlideList(),
