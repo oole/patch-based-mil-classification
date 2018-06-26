@@ -69,14 +69,13 @@ def emtrain(trainSlideData, valSlideData,
                 find_discriminative_patches(splitTrainSlideData,
                                             spatial_smoothing,
                                             netAcc,
-                                            sess, dropout_ratio=dropout_ratio, sanity_check=sanity_check, do_augment=do_augment, logreg_model_savepath=logreg_savepath, epochnum=epochnum)
+                                            sess,
+                                            dropout_ratio=dropout_ratio, sanity_check=sanity_check, do_augment=do_augment, logreg_model_savepath=logreg_savepath, epochnum=epochnum)
             print("Discriminative patches: " + repr(disc_patches_new) + ". Before: " +  repr(old_disc_patches))
 
             gc.collect()
 
-            train_accuracy, val_accuracy = train_on_discriminative_patches(train_slidelist, H, num_epochs, disc_patches_new, proxy_iterator_handle_ph, batch_size,
-                                            train_op, loss_op, accuracy_op,
-                                            keep_prob_ph, learning_rate_ph, is_training_ph,
+            train_accuracy, val_accuracy = train_on_discriminative_patches(splitTrainSlideData, netAcc, H, num_epochs, disc_patches_new,
                                             dropout_ratio=dropout_ratio, learning_rate=learning_rate, sess=sess, do_augment=do_augment)
 
             epochnum += num_epochs
@@ -148,7 +147,7 @@ def find_discriminative_patches(trainSlideData, netAccess, spatial_smoothing,
         pred_iterator_len = len(patches)
 
         if do_augment:
-            pred_dataset = dataset.img_dataset_augment(patches, batch_size=netAccess.,
+            pred_dataset = dataset.img_dataset_augment(patches, batch_size=netAccess.getBatchSize(),
                                                shuffle_buffer_size=shuffle_buffer_size, shuffle=False)
         else:
             pred_dataset = dataset.img_dataset(patches, batch_size=batchSize,
@@ -314,31 +313,31 @@ def find_discriminative_patches(trainSlideData, netAccess, spatial_smoothing,
 
     return H, disc_patches, train_predict_accuracy, train_max_accuracy, train_logreg_acccuracy
 
-def train_on_discriminative_patches(train_slidelist, H, num_epochs, num_patches, iterator_handle_ph, batch_size,
-                                    train_op, loss_op, accuracy_op,
-                                    keep_prob_ph, learning_rate_ph, is_training_ph,
+def train_on_discriminative_patches(trainSlideData, netAccess, H, num_epochs, num_patches,
                                     dropout_ratio, learning_rate, sess, do_augment=False):
 
+    slideList = trainSlideData.getSlideList()
 
-    train_patches = dataset.slidelist_to_patchlist(train_slidelist, H=H)
+    batchSize = netAccess.getBatchSize()
+
+    train_patches = dataset.slidelist_to_patchlist(slideList, H=H)
 
     if len(train_patches) != num_patches:
         raise Exception("H did not work correctly")
 
     if do_augment:
-        train_dataset = dataset.img_dataset_augment(train_patches, batch_size=batch_size,
+        train_dataset = dataset.img_dataset_augment(train_patches, batch_size=batchSize,
                                             shuffle_buffer_size=shuffle_buffer_size, shuffle=True)
     else:
-        train_dataset = dataset.img_dataset(train_patches, batch_size=batch_size,
+        train_dataset = dataset.img_dataset(train_patches, batch_size=batchSize,
                                                     shuffle_buffer_size=shuffle_buffer_size, shuffle=True)
     train_iterator = train_dataset.make_initializable_iterator()
 
     train_iterator_handle = sess.run(train_iterator.string_handle())
 
-    train_accuracy = train.train_given_net(iterator_handle_ph, train_iterator_handle,
+    train_accuracy = train.train_given_net(netAccess, train_iterator_handle,
                         num_patches, train_iterator,
-                        train_op, loss_op, accuracy_op, keep_prob_ph, learning_rate_ph, is_training_ph,
-                        num_epochs=num_epochs, batch_size=batch_size, dropout_ratio=dropout_ratio, learning_rate=learning_rate, sess=sess,
+                        num_epochs=num_epochs, dropout_ratio=dropout_ratio, learning_rate=learning_rate, sess=sess,
                           val_iterator=train_iterator, val_iterator_handle=train_iterator_handle, val_iterator_len=num_patches)
     return train_accuracy
 

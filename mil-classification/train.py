@@ -102,14 +102,13 @@ def train_net(trainSlideData , valSlideData=None, getlabel_train=data_tf.getlabe
         # print("Epoch %0.d - Validation Summary -- Loss: %0.5f, Acc: %0.5f" %
         #       (epoch+1, sum(np.asarray(batch_val_err)) / len(batch_val_err),
         #        sum(np.asarray(batch_val_acc)) / len(batch_val_acc)))
-        util.write_log_file(log_savepath, epochnum=epoch, train_accuracy=(sum(np.asarray(batch_train_acc)) / len(batch_train_acc)), val_accuracy=(sum(np.asarray(batch_val_acc)) / len(batch_val_acc)))
+        # util.write_log_file(log_savepath, epochnum=epoch, train_accuracy=(sum(np.asarray(batch_train_acc)) / len(batch_train_acc)), val_accuracy=(sum(np.asarray(batch_val_acc)) / len(batch_val_acc)))
     if savepath is not None:
         saver.save(sess, savepath)
 
 
-def train_given_net(iterator_handle_ph, train_iterator_handle,
+def train_given_net(netAccess, train_iterator_handle,
                     train_iterator_len, train_iterator,
-                    train_op, loss_op, accuracy_op, keep_prob_ph, learning_rate_ph, is_training,
                     val_iterator_handle=None, val_iterator_len=None, val_iterator=None,
                     num_epochs=2, batch_size=64, dropout_ratio=0.5, learning_rate=0.0005, sess=tf.Session()):
 
@@ -128,11 +127,11 @@ def train_given_net(iterator_handle_ph, train_iterator_handle,
         while True:
             try:
 
-                _, err, acc, _ = sess.run([train_op, loss_op, accuracy_op, extra_up_op],
-                                          feed_dict={keep_prob_ph: (1 - dropout_ratio),
-                                                     learning_rate_ph: learning_rate,
-                                                     is_training: True,
-                                                     iterator_handle_ph: train_iterator_handle})
+                _, err, acc, _ = sess.run([netAccess.getTrain(), netAccess.getLoss(), netAccess.getAccuracy(), netAccess.getUpdateOp()],
+                                          feed_dict={netAccess.getKeepProb(): (1 - dropout_ratio),
+                                                     netAccess.getLearningRate(): learning_rate,
+                                                     netAccess.getIsTraining(): True,
+                                                     netAccess.getIteratorHandle(): train_iterator_handle})
 
                 util.update_print(
                     "Training, Epoch: %0.f -- Loss: %0.5f, Acc: %0.5f, %0.d / %0.d" %
@@ -157,10 +156,10 @@ def train_given_net(iterator_handle_ph, train_iterator_handle,
             batch_val_acc = []
             while True:
                 try:
-                    err, acc = sess.run([loss_op, accuracy_op],
-                                        feed_dict={keep_prob_ph: (1 - dropout_ratio),
-                                                   is_training: False,
-                                                   iterator_handle_ph: val_iterator_handle})
+                    err, acc = sess.run([netAccess.getLoss(), netAccess.getAccuracy()],
+                                        feed_dict={netAccess.getKeepProb(): (1 - dropout_ratio),
+                                                   netAccess.getIsTraining(): False,
+                                                   netAccess.getIteratorHandle(): val_iterator_handle})
                     # util.update_print(
                     #     "Validation, Epoch: %0.f -- Loss: %0.5f, Acc: %0.5f, %0.d / %0.d" %
                     #     (epoch + 1, err, acc, i, val_iterator_len // batch_size + 1))
