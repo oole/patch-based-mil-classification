@@ -22,7 +22,7 @@ def predict_given_net(pred_iterator_handle, pred_iterator_len,
             y_pred, y_pred_prob, y_argmax = sess.run([netAcc.getYPred(), netAcc.getYPredProb(), netAcc.getYArgmax()],
                                         feed_dict={netAcc.getKeepProb(): (1 - dropout_ratio),
                                                    netAcc.getIsTraining(): False,
-                                                   netAcc.getIteratorHandle: pred_iterator_handle})
+                                                   netAcc.getIteratorHandle(): pred_iterator_handle})
             util.update_print(
                 "Prediction: batch %0.d / %0.d" %
                 (i, pred_iterator_len // batch_size + 1))

@@ -1,6 +1,6 @@
 from sklearn.linear_model import LogisticRegression
 from sklearn.externals import joblib
-import data
+import data_tf
 from sklearn.utils import shuffle
 from sklearn.metrics import accuracy_score, confusion_matrix
 
@@ -23,7 +23,7 @@ def save_logreg_model(model, savepath):
     print("train_logreg, saved model to:  " + savepath)
 
 def test_logreg(datapath, loadpath):
-    histograms, labels = data.read_histograms_and_labels_from_file(datapath)
+    histograms, labels = data_tf.read_histograms_and_labels_from_file(datapath)
     model = joblib.load(loadpath)
     predictions = model.predict(histograms)
     accuracy = accuracy_score(labels, predictions)

@@ -1,5 +1,6 @@
 import tensorflow as tf
 
+TBOARDFOLDER="/home/oole/tboard/"
 
 def weight_variable(shape, name, trainable = True, zero = False):
     weight_decay = tf.constant(0.001, dtype=tf.float32)
@@ -32,6 +33,8 @@ def build_model(scope, x, y,
                 use_dropout_1=True,
                 use_dropout_2=True):
     with tf.variable_scope(scope):
+        globalStep = tf.Variable(0, name='global_step', trainable=False)
+
         is_training = tf.placeholder(tf.bool, name='phase')
         keep_prob = tf.placeholder(tf.float32)
 
@@ -98,16 +101,17 @@ def build_model(scope, x, y,
         loss = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits_v2(labels=y, logits = y_pred))
         learning_rate = tf.placeholder(tf.float32)
 
-        train = tf.train.AdamOptimizer(learning_rate).minimize(loss)
+        train = tf.train.AdamOptimizer(learning_rate).minimize(loss, global_step=globalStep)
 
         y_argmax = tf.argmax(y_pred, 1)
         correct_prediction = tf.equal(y_argmax, tf.argmax(y, 1))
         accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
 
-        return NetAccess(train, loss, y, accuracy, x, keep_prob, learning_rate, is_training, y_pred, y_argmax, y_pred_prob)
+        return NetAccess(train, loss, y, accuracy, x, keep_prob, learning_rate, is_training, y_pred, y_argmax, y_pred_prob, globalStep)
 
 class NetAccess:
-    def __init__(self, train, loss, y, accuracy, x, keep_prob, learning_rate, is_training, y_pred, y_argmax, y_pred_prob, batchSize=64, shuffleBufferSize=2048):
+    def __init__(self, train, loss, y, accuracy, x, keep_prob, learning_rate, is_training, y_pred, y_argmax, y_pred_prob,
+                 globalStep, batchSize=64, shuffleBufferSize=2048):
         self.train = train
         self.loss= loss
         self.accuracy = accuracy
@@ -118,8 +122,10 @@ class NetAccess:
         self.y_pred = y_pred
         self.y_argmax = y_argmax
         self.y_pred_prob = y_pred_prob
+        self.globalStep = globalStep
         self.batchSize = batchSize
         self.shuffleBufferSize = shuffleBufferSize
+        self.summaryWriter=None
 
     def getTrain(self):
         return self.train
@@ -157,17 +163,25 @@ class NetAccess:
     def getIteratorHandle(self):
         return self.iteratorHandle
 
-    def setUpdateOp(self, updateOp):
-        self.updateOp = updateOp
-
     def getUpdateOp(self):
-        return self.updateOp
+        return tf.get_collection(tf.GraphKeys.UPDATE_OPS)
+
+    def getGlobalStep(self):
+        return self.globalStep
 
     def getBatchSize(self):
         return self.batchSize
 
     def getShuffleBufferSize(self):
         return self.shuffleBufferSize
+
+    def getSummmaryWriter(self, run, graph):
+        if self.summaryWriter is None:
+            print("NewSummaryWriter...")
+            tf.summary.merge_all()
+            self.summaryWriter = tf.summary.FileWriter("/home/oole/tboard/" + run, graph)
+
+        return self.summaryWriter
 
 
 

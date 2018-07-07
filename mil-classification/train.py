@@ -6,15 +6,17 @@ import netutil
 import data_tf
 from sklearn.utils import shuffle
 from skimage import io
+import validate
+
+TBOARDFOLDER="/home/oole/tboard/"
 
 
 def train_net(trainSlideData , valSlideData=None, getlabel_train=data_tf.getlabel_new, num_epochs=2, batch_size=64, do_augment=True,
-              dropout_ratio=0.5, lr=0.0005, savepath=None, shuffle_buffer_size=2048, loadpath=None, model_name="modelname", sess=tf.Session(), log_savepath=None):
-    trainSlideList, valSlideList = data_tf.splitSlideLists(trainSlideData, valSlideData)
-    train_patches = dataset.slidelist_to_patchlist(trainSlideList)
-    val_patches = dataset.slidelist_to_patchlist(valSlideList)
+              dropout_ratio=0.5, lr=0.0005, savepath=None, shuffle_buffer_size=2048, loadpath=None, model_name="modelname", sess=tf.Session(), log_savepath=None, runName=""):
+    trainSlideData, valSlideData = data_tf.splitSlideLists(trainSlideData, valSlideData)
+    train_patches = dataset.slidelist_to_patchlist(trainSlideData.getSlideList())
+    val_patches = dataset.slidelist_to_patchlist(valSlideData.getSlideList())
     np.random.shuffle(train_patches)
-    # np.random.shuffle(val_patches)
     if do_augment:
         train_dataset = dataset.img_dataset_augment(train_patches, batch_size=batch_size,
                                                     shuffle_buffer_size=shuffle_buffer_size, shuffle=True, getlabel = getlabel_train)
@@ -24,11 +26,12 @@ def train_net(trainSlideData , valSlideData=None, getlabel_train=data_tf.getlabe
                                                     shuffle_buffer_size=shuffle_buffer_size, shuffle=True, getlabel = getlabel_train)
         train_iterator = train_dataset.make_initializable_iterator()
 
-    # val_dataset = dataset.img_dataset_nolabel(val_patches, batch_size=batch_size)
-    # val_iterator = val_dataset.make_initializable_iterator()
+    val_dataset = dataset.img_dataset(val_patches, batch_size=batch_size, getlabel=getlabel_train)
+    val_iterator = val_dataset.make_initializable_iterator()
 
     iterator_handle, iterator_access, proxy_iterator = dataset.proxy_iterator(sess, train_iterator)
 
+    val_iterator.string_handle()
     train_iterator_handle = iterator_access[0]
     # val_iterator_handle = iterator_access[1]
 
@@ -40,10 +43,6 @@ def train_net(trainSlideData , valSlideData=None, getlabel_train=data_tf.getlabe
     netAcc = netutil.build_model(
         model_name, x, y, use_bn_1=True, use_bn_2=True, use_dropout_1=True, use_dropout_2=True)
     netAcc.setIteratorHandle(iterator_handle)
-    # Fix BN update problem
-    extra_up_op = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
-    netAcc.setUpdateOp(extra_up_op)
-    ##########
 
     # SAVER ###
     saver = tf.train.Saver()
@@ -53,6 +52,21 @@ def train_net(trainSlideData , valSlideData=None, getlabel_train=data_tf.getlabe
     else:
         saver.restore(sess, loadpath)
 
+    trainAccuracy, valAccuracy = train_given_net(netAcc,
+                    len(train_patches), train_iterator,
+                    val_iterator_len=len(val_patches), val_iterator=val_iterator,
+                    num_epochs=num_epochs, batch_size=batch_size, dropout_ratio=dropout_ratio, learning_rate=lr, sess=sess, runName=runName, log_savepath= log_savepath)
+
+    if savepath is not None:
+        saver.save(sess, savepath)
+    return trainAccuracy, valAccuracy, netAcc
+
+
+def train_given_net(netAcc,
+                    train_iterator_len, train_iterator,
+                    val_iterator_len=None, val_iterator=None,
+                    num_epochs=2, batch_size=64, dropout_ratio=0.5, learning_rate=0.0005, sess=tf.Session(), runName="", log_savepath=None):
+    train_iterator_handle = sess.run(train_iterator.string_handle())
     for epoch in range(num_epochs):
         sess.run(train_iterator.initializer)
         # sess.run(val_iterator.initializer)
@@ -64,74 +78,11 @@ def train_net(trainSlideData , valSlideData=None, getlabel_train=data_tf.getlabe
         while True:
             try:
 
-                _, err, acc, _, = sess.run([netAcc.getTrain(), netAcc.getLoss(), netAcc.getAccuracy(), extra_up_op],
+                _, err, acc, _, step = sess.run([netAcc.getTrain(), netAcc.getLoss(), netAcc.getAccuracy(), netAcc.getUpdateOp(), netAcc.getGlobalStep()],
                                            feed_dict={netAcc.getKeepProb(): (1 - dropout_ratio),
-                                                      netAcc.getLearningRate(): lr,
+                                                      netAcc.getLearningRate(): learning_rate,
                                                       netAcc.getIsTraining(): True,
-                                                      iterator_handle: train_iterator_handle})
-
-                util.update_print(
-                    "Training, Epoch: %0.f -- Loss: %0.5f, Acc: %0.5f, %0.d / %0.d" %
-                    (epoch+1, err, acc, i, len(train_patches) // batch_size + 1))
-                i = i + 1
-                batch_train_acc.append(acc)
-                batch_train_err.append(err)
-            except tf.errors.OutOfRangeError:
-                print("End of training dataset.")
-                break
-        print("Epoch %0.d - Training Summary -- Loss: %0.5f, Acc: %0.5f" %
-              (epoch+1, sum(np.asarray(batch_train_err)) / len(batch_train_err),
-               sum(np.asarray(batch_train_acc)) / len(batch_train_acc)))
-        i = 1
-
-        # Do non verbose_validation
-        # batch_val_err = []
-        # batch_val_acc = []
-        # while True:
-        #     try:
-        #         err, acc = sess.run([netAcc.getLoss(), netAcc.getAccuracy()],
-        #                             feed_dict={netAcc.getKeepProb(): (1 - dropout_ratio),
-        #                                        netAcc.getIsTraining(): False,
-        #                                        iterator_handle: val_iterator_handle})
-        #         i = i + 1
-        #         batch_val_acc.append(acc)
-        #         batch_val_err.append(err)
-        #     except tf.errors.OutOfRangeError:
-        #         print("End of validation dataset.")
-        #         break
-        # print("Epoch %0.d - Validation Summary -- Loss: %0.5f, Acc: %0.5f" %
-        #       (epoch+1, sum(np.asarray(batch_val_err)) / len(batch_val_err),
-        #        sum(np.asarray(batch_val_acc)) / len(batch_val_acc)))
-        # util.write_log_file(log_savepath, epochnum=epoch, train_accuracy=(sum(np.asarray(batch_train_acc)) / len(batch_train_acc)), val_accuracy=(sum(np.asarray(batch_val_acc)) / len(batch_val_acc)))
-    if savepath is not None:
-        saver.save(sess, savepath)
-
-
-def train_given_net(netAccess, train_iterator_handle,
-                    train_iterator_len, train_iterator,
-                    val_iterator_handle=None, val_iterator_len=None, val_iterator=None,
-                    num_epochs=2, batch_size=64, dropout_ratio=0.5, learning_rate=0.0005, sess=tf.Session()):
-
-    # Fix BN update problem
-    extra_up_op = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
-    ##########
-
-    for epoch in range(num_epochs):
-        sess.run(train_iterator.initializer)
-
-        print("Epoch: %s/%s" % (epoch+1, num_epochs))
-        print("Training:")
-        batch_train_acc = []
-        batch_train_err = []
-        i = 1
-        while True:
-            try:
-
-                _, err, acc, _ = sess.run([netAccess.getTrain(), netAccess.getLoss(), netAccess.getAccuracy(), netAccess.getUpdateOp()],
-                                          feed_dict={netAccess.getKeepProb(): (1 - dropout_ratio),
-                                                     netAccess.getLearningRate(): learning_rate,
-                                                     netAccess.getIsTraining(): True,
-                                                     netAccess.getIteratorHandle(): train_iterator_handle})
+                                                      netAcc.getIteratorHandle(): train_iterator_handle})
 
                 util.update_print(
                     "Training, Epoch: %0.f -- Loss: %0.5f, Acc: %0.5f, %0.d / %0.d" %
@@ -139,39 +90,31 @@ def train_given_net(netAccess, train_iterator_handle,
                 i = i + 1
                 batch_train_acc.append(acc)
                 batch_train_err.append(err)
+                print("Step: " + str(step))
+                util.writeBatchStatsToTensorBoard(err, acc, netAcc.getSummmaryWriter(runName, sess.graph), step)
+                # summary_writer.add_summary(tf.Summary(value=[tf.Summary.Value(tag="acc", simple_value=acc)]),global_step=step)
             except tf.errors.OutOfRangeError:
                 print("End of training dataset.")
                 break
-        train_accuracy = sum(np.asarray(batch_train_acc)) / len(batch_train_acc)
-
+        trainLoss = sum(np.asarray(batch_train_err)) / len(batch_train_err)
+        trainAccuracy = sum(np.asarray(batch_train_acc)) / len(batch_train_acc)
+        util.writeEpochStatsToTensorBoard(trainLoss, trainAccuracy, netAcc.getSummmaryWriter(runName, sess.graph), step)
         print("Epoch %0.d - Training Summary -- Loss: %0.5f, Acc: %0.5f" %
-              (epoch+1, sum(np.asarray(batch_train_err)) / len(batch_train_err),
-               train_accuracy))
+              (epoch+1, trainLoss, trainAccuracy))
+        i = 1
 
-        if val_iterator is not None:
-            i = 1
-            sess.run(val_iterator.initializer)
-            # Do non verbose_validation
-            batch_val_err = []
-            batch_val_acc = []
-            while True:
-                try:
-                    err, acc = sess.run([netAccess.getLoss(), netAccess.getAccuracy()],
-                                        feed_dict={netAccess.getKeepProb(): (1 - dropout_ratio),
-                                                   netAccess.getIsTraining(): False,
-                                                   netAccess.getIteratorHandle(): val_iterator_handle})
-                    # util.update_print(
-                    #     "Validation, Epoch: %0.f -- Loss: %0.5f, Acc: %0.5f, %0.d / %0.d" %
-                    #     (epoch + 1, err, acc, i, val_iterator_len // batch_size + 1))
-                    i = i + 1
-                    batch_val_acc.append(acc)
-                    batch_val_err.append(err)
-                except tf.errors.OutOfRangeError:
-                    print("End of validation dataset.")
-                    break
-            val_accuracy = sum(np.asarray(batch_val_acc)) / len(batch_val_acc)
-            print("Epoch %0.d - Validation Summary -- Loss: %0.5f, Acc: %0.5f" %
-                  (epoch+1, sum(np.asarray(batch_val_err)) / len(batch_val_err),
-                   val_accuracy))
+        # for validation, 1. do overall accuracy (patchbased)
+        valLoss, valAccuracy = validate.validate_existing_net(val_iterator, val_iterator_len, netAcc, dropout_ratio=dropout_ratio,
+                                       batch_size=batch_size, sess=sess)
 
-    return train_accuracy, val_accuracy
+        util.writeValStatsToTensorBoard(valLoss, valAccuracy, netAcc.getSummmaryWriter(runName, sess.graph), step)
+        # 2. do max acc
+
+        # 3. do logreg acc (logreg model needs to be trained first
+
+        util.write_log_file(log_savepath, epochNum=epoch + 1, trainLoss= trainLoss,
+                            trainAccuracy=trainAccuracy, valLoss=valLoss,
+                            valAccuracy=valAccuracy)
+
+    netAcc.getSummmaryWriter(runName, sess.graph).flush()
+    return trainAccuracy, valAccuracy

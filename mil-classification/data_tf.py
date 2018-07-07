@@ -243,12 +243,11 @@ def collect_data_csv(train_csv):
 
 
 class SlideData:
-    def __init__(self, slideList, slideDimensionList, numberOfPatches, slideLabelList, labelEncoder):
+    def __init__(self, slideList, slideDimensionList, numberOfPatches, slideLabelList):
         self.slideList= slideList
         self.slideDimensionList = slideDimensionList
         self.numberOfPatches = numberOfPatches
         self.slideLabelList = slideLabelList
-        self.labelEncoder = labelEncoder
 
     def getSlideList(self):
         return self.slideList
@@ -265,6 +264,9 @@ class SlideData:
     def getNumberOfSlides(self):
         return len(self.slideList)
 
+    def setLabelEncoder(self, labelEncoder):
+        self.labelEncoder = labelEncoder
+
     def getLabelEncoder(self):
         return self.labelEncoder
 
@@ -273,6 +275,7 @@ def splitSlideLists(trainSlideData, valSlideData):
                                    trainSlideData.getSlideDimensionList(), valSlideData.getSlideDimensionList(),
                                    trainSlideData.getSlideLabelList(), valSlideData.getSlideLabelList(),
                                    stratify=trainSlideData.getSlideLabelList())
+
     trainSlideList = splitResult[0]
     valSlideList = splitResult[3]
     trainDimList = splitResult[4]
@@ -280,9 +283,29 @@ def splitSlideLists(trainSlideData, valSlideData):
     trainLabelList = splitResult[8]
     valLabelList = splitResult[11]
 
-    if (len(trainSlideList) != trainDimList != trainLabelList):
+    if (len(trainSlideList) != len(trainDimList) != len(trainLabelList)):
         raise ValueError("Split is wrong")
-    if (len(valSlideList) != valDimList != valLabelList):
+    if (len(valSlideList) != len(valDimList) != len(valLabelList)):
         raise ValueError("Split is wrong")
 
-    return SlideData(trainSlideList, trainDimList, trainSlideList.size, trainLabelList), SlideData(valSlideList, valDimList, valSlideList.size, valLabelList)
+    newTrainSlideData = SlideData(trainSlideList, trainDimList, np.asarray(trainSlideList).size, trainLabelList)
+    newTrainSlideData.setLabelEncoder(trainSlideData.getLabelEncoder())
+    newValSlideData = SlideData(valSlideList, valDimList, np.asarray(valSlideList).size, valLabelList)
+    newValSlideData.setLabelEncoder(valSlideData.getLabelEncoder())
+
+    return newTrainSlideData, newValSlideData
+
+# returns 10
+def getTestSizeData(trainSlideData, valSlideData, size):
+    newTrainSlideData = SlideData(getSubList(trainSlideData.getSlideList(), size), getSubList(trainSlideData.getSlideDimensionList(), size),
+                                  size, getSubList(trainSlideData.getSlideLabelList(),size))
+    newValSlideData = SlideData(getSubList(valSlideData.getSlideList(), size), getSubList(valSlideData.getSlideDimensionList(), size),
+                                  size, getSubList(valSlideData.getSlideLabelList(),size))
+    newTrainSlideData.setLabelEncoder(trainSlideData.getLabelEncoder())
+    newValSlideData.setLabelEncoder(valSlideData.getLabelEncoder())
+
+    return newTrainSlideData, newValSlideData
+
+def getSubList(list, size):
+    return list[:size]
+

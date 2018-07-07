@@ -15,19 +15,17 @@ import csv
 import train_logreg
 import util
 
-shuffle_buffer_size = 2000
-
+shuffle_buffer_size = 2048
 
 def emtrain(trainSlideData, valSlideData,
-            loadpath, savepath,
-            label_encoder, batch_size,
+            loadpath, savepath, batch_size,
             initial_epochnum=0,
             model_name='model',
             spatial_smoothing=False,
             do_augment=True,
             num_epochs =2,
             dropout_ratio=0.5,
-            learning_rate=0.0005, sanity_check=False, logfile_path=None, logreg_savepath=None):
+            learning_rate=0.0005, sanity_check=False, logfile_path=None, logreg_savepath=None, runName="", netAcc=None):
 
     iteration = 0
 
@@ -39,19 +37,19 @@ def emtrain(trainSlideData, valSlideData,
     old_disc_patches = splitTrainSlideData.getNumberOfPatches()
     with tf.Session() as sess:
         ## create iterator
-        create_iterator_patch = dataset.slidelist_to_patchlist(splitTrainSlideData.getSlideList()[0])
-        create_iterator_dataset = dataset.img_dataset(create_iterator_patch, batch_size=batch_size,
-                                                   shuffle_buffer_size=shuffle_buffer_size, shuffle=False)
+        create_iterator_patch = dataset.slidelist_to_patchlist(splitTrainSlideData.getSlideList())
+        create_iterator_dataset = dataset.img_dataset_augment(create_iterator_patch, batch_size=batch_size,
+                                                   shuffle_buffer_size=shuffle_buffer_size, shuffle=False,  getlabel=data_tf.getlabel)
         create_iterator_iter = create_iterator_dataset.make_one_shot_iterator()
-        proxy_iterator_handle_ph= tf.placeholder(tf.string, shape=[])
-        proxy_iterator = tf.data.Iterator.from_string_handle(proxy_iterator_handle_ph, output_types=create_iterator_iter.output_types,
-                                                       output_shapes=create_iterator_iter.output_shapes)
-        x, y = proxy_iterator.get_next()
+        if (netAcc is None):
+            proxy_iterator_handle_ph= tf.placeholder(tf.string, shape=[])
+            proxy_iterator = tf.data.Iterator.from_string_handle(proxy_iterator_handle_ph, output_types=create_iterator_iter.output_types,
+                                                             output_shapes=create_iterator_iter.output_shapes)
+            x, y = proxy_iterator.get_next()
+            netAcc = netutil.build_model(model_name, x, y, use_bn_1=True, use_bn_2=True, use_dropout_1=True, use_dropout_2=True)
+            netAcc.setIteratorHandle(proxy_iterator_handle_ph)
 
-        netAcc = netutil.build_model(model_name, x, y, use_bn_1=True, use_bn_2=True, use_dropout_1=True, use_dropout_2=True)
-        netAcc.setIteratorHandle(proxy_iterator_handle_ph)
-        extra_up_op = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
-        netAcc.setUpdateOp(extra_up_op)
+
 
 
 
@@ -62,13 +60,15 @@ def emtrain(trainSlideData, valSlideData,
         # load model from disc
         saver.restore(sess, loadpath)
 
+        netAcc.getSummmaryWriter(runName, sess.graph)
+
         while True:
 
             ##
             H, disc_patches_new, train_predict_accuracy, train_max_accuracy, train_logreg_acccuracy = \
                 find_discriminative_patches(splitTrainSlideData,
-                                            spatial_smoothing,
                                             netAcc,
+                                            spatial_smoothing,
                                             sess,
                                             dropout_ratio=dropout_ratio, sanity_check=sanity_check, do_augment=do_augment, logreg_model_savepath=logreg_savepath, epochnum=epochnum)
             print("Discriminative patches: " + repr(disc_patches_new) + ". Before: " +  repr(old_disc_patches))
@@ -76,15 +76,18 @@ def emtrain(trainSlideData, valSlideData,
             gc.collect()
 
             train_accuracy, val_accuracy = train_on_discriminative_patches(splitTrainSlideData, netAcc, H, num_epochs, disc_patches_new,
-                                            dropout_ratio=dropout_ratio, learning_rate=learning_rate, sess=sess, do_augment=do_augment)
+                                            dropout_ratio=dropout_ratio, learning_rate=learning_rate, sess=sess, do_augment=do_augment, runName=runName)
+
+            ## evluation of net.
+
 
             epochnum += num_epochs
             old_disc_patches = disc_patches_new
             iteration = iteration + 1
 
-            util.write_log_file(logfile_path, epochnum=epochnum, train_predict_accuracy=train_predict_accuracy, train_max_accuracy=train_max_accuracy,
-                   train_logreg_acccuracy=train_logreg_acccuracy, train_accuracy=train_accuracy,
-                   val_accuracy=val_accuracy)
+            util.write_log_file(logfile_path, epochNum=epochnum, trainPredictAccuracy=train_predict_accuracy, trainMaxAccuracy=train_max_accuracy,
+                                trainLogRegAcccuracy=train_logreg_acccuracy, trainAccuracy=train_accuracy,
+                                valAccuracy=val_accuracy)
             if savepath is not None:
                 saver.save(sess, savepath)
 
@@ -148,7 +151,7 @@ def find_discriminative_patches(trainSlideData, netAccess, spatial_smoothing,
 
         if do_augment:
             pred_dataset = dataset.img_dataset_augment(patches, batch_size=netAccess.getBatchSize(),
-                                               shuffle_buffer_size=shuffle_buffer_size, shuffle=False)
+                                               shuffle_buffer_size=shuffle_buffer_size, shuffle=False, getlabel=data_tf.getlabel_new)
         else:
             pred_dataset = dataset.img_dataset(patches, batch_size=batchSize,
                                                        shuffle_buffer_size=shuffle_buffer_size, shuffle=False)
@@ -314,7 +317,7 @@ def find_discriminative_patches(trainSlideData, netAccess, spatial_smoothing,
     return H, disc_patches, train_predict_accuracy, train_max_accuracy, train_logreg_acccuracy
 
 def train_on_discriminative_patches(trainSlideData, netAccess, H, num_epochs, num_patches,
-                                    dropout_ratio, learning_rate, sess, do_augment=False):
+                                    dropout_ratio, learning_rate, sess, do_augment=False, runName=""):
 
     slideList = trainSlideData.getSlideList()
 
@@ -327,18 +330,16 @@ def train_on_discriminative_patches(trainSlideData, netAccess, H, num_epochs, nu
 
     if do_augment:
         train_dataset = dataset.img_dataset_augment(train_patches, batch_size=batchSize,
-                                            shuffle_buffer_size=shuffle_buffer_size, shuffle=True)
+                                            shuffle_buffer_size=shuffle_buffer_size, shuffle=True, getlabel=data_tf.getlabel_new)
     else:
         train_dataset = dataset.img_dataset(train_patches, batch_size=batchSize,
                                                     shuffle_buffer_size=shuffle_buffer_size, shuffle=True)
     train_iterator = train_dataset.make_initializable_iterator()
 
-    train_iterator_handle = sess.run(train_iterator.string_handle())
-
-    train_accuracy = train.train_given_net(netAccess, train_iterator_handle,
+    train_accuracy = train.train_given_net(netAccess,
                         num_patches, train_iterator,
                         num_epochs=num_epochs, dropout_ratio=dropout_ratio, learning_rate=learning_rate, sess=sess,
-                          val_iterator=train_iterator, val_iterator_handle=train_iterator_handle, val_iterator_len=num_patches)
+                          val_iterator=train_iterator, val_iterator_len=num_patches, runName=runName)
     return train_accuracy
 
 
