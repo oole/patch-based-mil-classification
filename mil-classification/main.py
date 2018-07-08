@@ -155,10 +155,10 @@ def train_augment_csv(train_csv="/home/oole/Data/nice_data/train.csv", test_csv=
 
     labelEncoder = data_tf.labelencoder()
 
-    trainSlideData = data_tf.collect_data_csv(train_csv)
+    trainSlideData = data_tf.collect_data_csv(train_csv, data_tf.getlabel_new)
     trainSlideData.setLabelEncoder(labelEncoder)
 
-    valSlideData = data_tf.collect_data_csv(val_csv)
+    valSlideData = data_tf.collect_data_csv(val_csv, data_tf.getlabel_new)
     valSlideData.setLabelEncoder(labelEncoder)
 
     #test purposes

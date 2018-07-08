@@ -14,6 +14,7 @@ from sklearn.metrics import accuracy_score, confusion_matrix
 import csv
 import train_logreg
 import util
+import evaluate
 
 shuffle_buffer_size = 2048
 
@@ -75,11 +76,8 @@ def emtrain(trainSlideData, valSlideData,
 
             gc.collect()
 
-            train_accuracy, val_accuracy = train_on_discriminative_patches(splitTrainSlideData, netAcc, H, num_epochs, disc_patches_new,
+            train_accuracy, val_accuracy = train_on_discriminative_patches(splitTrainSlideData, valSlideData, netAcc, H, initial_epochnum, num_epochs, disc_patches_new,
                                             dropout_ratio=dropout_ratio, learning_rate=learning_rate, sess=sess, do_augment=do_augment, runName=runName)
-
-            ## evluation of net.
-
 
             epochnum += num_epochs
             old_disc_patches = disc_patches_new
@@ -149,14 +147,7 @@ def find_discriminative_patches(trainSlideData, netAccess, spatial_smoothing,
 
         pred_iterator_len = len(patches)
 
-        if do_augment:
-            pred_dataset = dataset.img_dataset_augment(patches, batch_size=netAccess.getBatchSize(),
-                                               shuffle_buffer_size=shuffle_buffer_size, shuffle=False, getlabel=data_tf.getlabel_new)
-        else:
-            pred_dataset = dataset.img_dataset(patches, batch_size=batchSize,
-                                                       shuffle_buffer_size=shuffle_buffer_size, shuffle=False)
-
-        pred_iterator = pred_dataset.make_one_shot_iterator()
+        pred_iterator =  trainSlideData.getIterators(netAccess)[i]
 
         pred_iterator_handle = sess.run(pred_iterator.string_handle())
 
@@ -316,7 +307,7 @@ def find_discriminative_patches(trainSlideData, netAccess, spatial_smoothing,
 
     return H, disc_patches, train_predict_accuracy, train_max_accuracy, train_logreg_acccuracy
 
-def train_on_discriminative_patches(trainSlideData, netAccess, H, num_epochs, num_patches,
+def train_on_discriminative_patches(trainSlideData, valSlideData, netAccess, H, initial_epochnum, num_epochs, num_patches,
                                     dropout_ratio, learning_rate, sess, do_augment=False, runName=""):
 
     slideList = trainSlideData.getSlideList()
@@ -335,11 +326,19 @@ def train_on_discriminative_patches(trainSlideData, netAccess, H, num_epochs, nu
         train_dataset = dataset.img_dataset(train_patches, batch_size=batchSize,
                                                     shuffle_buffer_size=shuffle_buffer_size, shuffle=True)
     train_iterator = train_dataset.make_initializable_iterator()
+    actualEpoch = initial_epochnum
+    for i in range(num_epochs):
 
-    train_accuracy = train.train_given_net(netAccess,
-                        num_patches, train_iterator,
-                        num_epochs=num_epochs, dropout_ratio=dropout_ratio, learning_rate=learning_rate, sess=sess,
-                          val_iterator=train_iterator, val_iterator_len=num_patches, runName=runName)
+        train_accuracy = train.train_given_net(netAccess,
+                            num_patches, train_iterator,
+                            num_epochs=num_epochs, dropout_ratio=dropout_ratio, learning_rate=learning_rate, sess=sess,
+                              val_iterator=train_iterator, val_iterator_len=num_patches, runName=runName)
+
+
+        actualEpoch +=1
+
+        evaluate.evaluateNet(netAccess, None, valSlideData, actualEpoch, sess=sess, dropout=dropout_ratio,
+                             runName=runName)
     return train_accuracy
 
 

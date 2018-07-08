@@ -7,6 +7,8 @@ import data_tf
 from sklearn.utils import shuffle
 from skimage import io
 import validate
+import evaluate
+
 
 TBOARDFOLDER="/home/oole/tboard/"
 
@@ -108,6 +110,7 @@ def train_given_net(netAcc,
                                        batch_size=batch_size, sess=sess)
 
         util.writeValStatsToTensorBoard(valLoss, valAccuracy, netAcc.getSummmaryWriter(runName, sess.graph), step)
+
         # 2. do max acc
 
         # 3. do logreg acc (logreg model needs to be trained first

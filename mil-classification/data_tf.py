@@ -5,6 +5,7 @@ import numpy as np
 import pickle
 import re
 from sklearn.model_selection import train_test_split
+import dataset
 
 
 
@@ -222,7 +223,7 @@ def collect_flat_data(datapath):
     # at this point we have a list of lists containing the patches
     return patch_paths
 
-def collect_data_csv(train_csv):
+def collect_data_csv(train_csv, getLabel):
     slidepaths, labels, dimensions = loaddata_csv(train_csv)
 
     number_of_patches = 0
@@ -239,15 +240,17 @@ def collect_data_csv(train_csv):
         slidelist.append(patchlist)
 
 
-    return SlideData(slidelist, dimensions, number_of_patches, labels)
+    return SlideData(slidelist, dimensions, number_of_patches, labels, getLabel)
 
 
 class SlideData:
-    def __init__(self, slideList, slideDimensionList, numberOfPatches, slideLabelList):
+    def __init__(self, slideList, slideDimensionList, numberOfPatches, slideLabelList, getLabel):
         self.slideList= slideList
         self.slideDimensionList = slideDimensionList
         self.numberOfPatches = numberOfPatches
         self.slideLabelList = slideLabelList
+        self.slideIterators = None
+        self.getLabel = getLabel
 
     def getSlideList(self):
         return self.slideList
@@ -270,6 +273,25 @@ class SlideData:
     def getLabelEncoder(self):
         return self.labelEncoder
 
+    def getLabelFunc(self):
+        return self.getLabel
+
+    def getIterators(self, netAccess):
+        iterators = []
+        if self.slideIterators is None:
+            for slide in self.slideList:
+                slideDataset = dataset.img_dataset_augment(slide, batch_size=netAccess.getBatchSize(),
+                                                           shuffle_buffer_size=netAccess.getShuffleBufferSize(), shuffle=False,
+                                                           getlabel=self.getLabelFunc())
+
+                slideIterator = slideDataset.make_one_shot_iterator()
+                iterators.append(slideIterator)
+            self.slideIterators = iterators
+
+            if len(self.slideIterators)!= len(self.slideList):
+                raise ValueError("Iterators could not be created.")
+        return self.slideIterators
+
 def splitSlideLists(trainSlideData, valSlideData):
     splitResult = train_test_split(trainSlideData.getSlideList(), valSlideData.getSlideList(),
                                    trainSlideData.getSlideDimensionList(), valSlideData.getSlideDimensionList(),
@@ -288,9 +310,9 @@ def splitSlideLists(trainSlideData, valSlideData):
     if (len(valSlideList) != len(valDimList) != len(valLabelList)):
         raise ValueError("Split is wrong")
 
-    newTrainSlideData = SlideData(trainSlideList, trainDimList, np.asarray(trainSlideList).size, trainLabelList)
+    newTrainSlideData = SlideData(trainSlideList, trainDimList, np.asarray(trainSlideList).size, trainLabelList, trainSlideData.getLabelFunc())
     newTrainSlideData.setLabelEncoder(trainSlideData.getLabelEncoder())
-    newValSlideData = SlideData(valSlideList, valDimList, np.asarray(valSlideList).size, valLabelList)
+    newValSlideData = SlideData(valSlideList, valDimList, np.asarray(valSlideList).size, valLabelList, valSlideData.getLabelFunc())
     newValSlideData.setLabelEncoder(valSlideData.getLabelEncoder())
 
     return newTrainSlideData, newValSlideData
@@ -298,12 +320,11 @@ def splitSlideLists(trainSlideData, valSlideData):
 # returns 10
 def getTestSizeData(trainSlideData, valSlideData, size):
     newTrainSlideData = SlideData(getSubList(trainSlideData.getSlideList(), size), getSubList(trainSlideData.getSlideDimensionList(), size),
-                                  size, getSubList(trainSlideData.getSlideLabelList(),size))
+                                  size, getSubList(trainSlideData.getSlideLabelList(),size), trainSlideData.getLabelFunc())
     newValSlideData = SlideData(getSubList(valSlideData.getSlideList(), size), getSubList(valSlideData.getSlideDimensionList(), size),
-                                  size, getSubList(valSlideData.getSlideLabelList(),size))
+                                  size, getSubList(valSlideData.getSlideLabelList(),size), valSlideData.getLabelFunc())
     newTrainSlideData.setLabelEncoder(trainSlideData.getLabelEncoder())
     newValSlideData.setLabelEncoder(valSlideData.getLabelEncoder())
-
     return newTrainSlideData, newValSlideData
 
 def getSubList(list, size):
