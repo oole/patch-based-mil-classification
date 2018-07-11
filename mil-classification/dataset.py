@@ -98,9 +98,9 @@ def img_dataset_augment(images, batch_size,  getlabel, shuffle_buffer_size=None,
         raise Exception("If shuffle==True shuffle_buffer_size must be set!")
 
     tr_data = tf.data.Dataset.from_tensor_slices((images, labels))
-    tr_data = tr_data.map(input_parser_imglabel_augment)
     if shuffle:
         tr_data = tr_data.shuffle(buffer_size=shuffle_buffer_size)
+    tr_data = tr_data.map(input_parser_imglabel_augment)
     tr_data = tr_data.batch(batch_size)
     return tr_data
 

@@ -12,7 +12,6 @@ import evaluate
 
 TBOARDFOLDER="/home/oole/tboard/"
 
-
 def train_net(trainSlideData , valSlideData=None, getlabel_train=data_tf.getlabel_new, num_epochs=2, batch_size=64, do_augment=True,
               dropout_ratio=0.5, lr=0.0005, savepath=None, shuffle_buffer_size=2048, loadpath=None, model_name="modelname", sess=tf.Session(), log_savepath=None, runName=""):
     trainSlideData, valSlideData = data_tf.splitSlideLists(trainSlideData, valSlideData)
@@ -67,8 +66,9 @@ def train_net(trainSlideData , valSlideData=None, getlabel_train=data_tf.getlabe
 def train_given_net(netAcc,
                     train_iterator_len, train_iterator,
                     val_iterator_len=None, val_iterator=None,
-                    num_epochs=2, batch_size=64, dropout_ratio=0.5, learning_rate=0.0005, sess=tf.Session(), runName="", log_savepath=None):
+                    num_epochs=2, batch_size=64, dropout_ratio=0.5, learning_rate=0.0005, sess=tf.Session(), runName="", log_savepath=None, actualEpoch=0):
     train_iterator_handle = sess.run(train_iterator.string_handle())
+
     for epoch in range(num_epochs):
         sess.run(train_iterator.initializer)
         # sess.run(val_iterator.initializer)
@@ -88,7 +88,7 @@ def train_given_net(netAcc,
 
                 util.update_print(
                     "Training, Epoch: %0.f -- Loss: %0.5f, Acc: %0.5f, %0.d / %0.d" %
-                    (epoch+1, err, acc, i, train_iterator_len // batch_size + 1))
+                    (actualEpoch, err, acc, i, train_iterator_len // batch_size + 1))
                 i = i + 1
                 batch_train_acc.append(acc)
                 batch_train_err.append(err)
@@ -118,6 +118,7 @@ def train_given_net(netAcc,
         util.write_log_file(log_savepath, epochNum=epoch + 1, trainLoss= trainLoss,
                             trainAccuracy=trainAccuracy, valLoss=valLoss,
                             valAccuracy=valAccuracy)
+        actualEpoch += 1
 
     netAcc.getSummmaryWriter(runName, sess.graph).flush()
     return trainAccuracy, valAccuracy

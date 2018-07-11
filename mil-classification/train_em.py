@@ -38,14 +38,14 @@ def emtrain(trainSlideData, valSlideData,
     old_disc_patches = splitTrainSlideData.getNumberOfPatches()
     with tf.Session() as sess:
         ## create iterator
-        create_iterator_patch = dataset.slidelist_to_patchlist(splitTrainSlideData.getSlideList())
-        create_iterator_dataset = dataset.img_dataset_augment(create_iterator_patch, batch_size=batch_size,
-                                                   shuffle_buffer_size=shuffle_buffer_size, shuffle=False,  getlabel=data_tf.getlabel)
-        create_iterator_iter = create_iterator_dataset.make_one_shot_iterator()
         if (netAcc is None):
+            create_iterator_patch = dataset.slidelist_to_patchlist(splitTrainSlideData.getSlideList())
+            create_iterator_dataset = dataset.img_dataset_augment(create_iterator_patch, batch_size=batch_size,
+                                                                  shuffle_buffer_size=shuffle_buffer_size, shuffle=False,  getlabel=data_tf.getlabel)
+            create_iterator_iter = create_iterator_dataset.make_one_shot_iterator()
             proxy_iterator_handle_ph= tf.placeholder(tf.string, shape=[])
             proxy_iterator = tf.data.Iterator.from_string_handle(proxy_iterator_handle_ph, output_types=create_iterator_iter.output_types,
-                                                             output_shapes=create_iterator_iter.output_shapes)
+                                                                 output_shapes=create_iterator_iter.output_shapes)
             x, y = proxy_iterator.get_next()
             netAcc = netutil.build_model(model_name, x, y, use_bn_1=True, use_bn_2=True, use_dropout_1=True, use_dropout_2=True)
             netAcc.setIteratorHandle(proxy_iterator_handle_ph)
@@ -60,6 +60,8 @@ def emtrain(trainSlideData, valSlideData,
         ########################
         # load model from disc
         saver.restore(sess, loadpath)
+
+
 
         netAcc.getSummmaryWriter(runName, sess.graph)
 
@@ -76,8 +78,8 @@ def emtrain(trainSlideData, valSlideData,
 
             gc.collect()
 
-            train_accuracy, val_accuracy = train_on_discriminative_patches(splitTrainSlideData, valSlideData, netAcc, H, initial_epochnum, num_epochs, disc_patches_new,
-                                            dropout_ratio=dropout_ratio, learning_rate=learning_rate, sess=sess, do_augment=do_augment, runName=runName)
+            train_accuracy, val_accuracy = train_on_discriminative_patches(splitTrainSlideData, valSlideData, netAcc, H, epochnum, num_epochs, disc_patches_new,
+                                            dropout_ratio=dropout_ratio, learning_rate=learning_rate, sess=sess, do_augment=do_augment, runName=runName, logregSavePath=logreg_savepath)
 
             epochnum += num_epochs
             old_disc_patches = disc_patches_new
@@ -89,9 +91,9 @@ def emtrain(trainSlideData, valSlideData,
             if savepath is not None:
                 saver.save(sess, savepath)
 
-            print("Iteration done (breaking)")
-            # Since there is a memory leak problem at the moment the learning will not be looped
-            break
+            # print("Iteration done (breaking)")
+            # # Since there is a memory leak problem at the moment the learning will not be looped
+            # break
 
 
 def find_discriminative_patches(trainSlideData, netAccess, spatial_smoothing,
@@ -129,6 +131,7 @@ def find_discriminative_patches(trainSlideData, netAccess, spatial_smoothing,
     number_of_correct_pred = 0
     train_histograms = []
     for i in range(trainSlideData.getNumberOfSlides()):
+        gc.collect()
         # This is where the spatial structure should be recovered
         # We need to keep a list of discrimative or not
         print("------------------------------------------------------------------------")
@@ -148,6 +151,8 @@ def find_discriminative_patches(trainSlideData, netAccess, spatial_smoothing,
         pred_iterator_len = len(patches)
 
         pred_iterator =  trainSlideData.getIterators(netAccess)[i]
+
+        sess.run(pred_iterator.initializer)
 
         pred_iterator_handle = sess.run(pred_iterator.string_handle())
 
@@ -209,11 +214,11 @@ def find_discriminative_patches(trainSlideData, netAccess, spatial_smoothing,
         else:
             Exception("probabilities could not be attributed")
 
-    train_predict_accuracy = number_of_correct_pred / trainSlideData.getNumberOfPatches()
-    print("Number of correct predictions: %s, corresponds to %0.3f" % (
-    str(number_of_correct_pred), train_predict_accuracy))
-    if sanity_check:
-        print("Evaluating on training set")
+    #train_predict_accuracy = number_of_correct_pred / trainSlideData.getNumberOfPatches()
+    #print("Number of correct predictions: %s, corresponds to %0.3f" % (
+    #str(number_of_correct_pred), train_predict_accuracy))
+    #if sanity_check:
+        #print("Evaluating on training set")
         # at this point it would be cool to evaluate the whole train set, the accuracy and loss should correspond to the
         # trainin accuracy
         # total_eval = cnn_pred.evaluate_generator(data.patchgen_no_shuffle(train_slidelist, batch_size, label_encoder),
@@ -221,20 +226,20 @@ def find_discriminative_patches(trainSlideData, netAccess, spatial_smoothing,
         # print("Evaluation Accuracy: %s" % total_eval[1])
 
     ### Testing MAX predict ###
-    predictions = list(map(labelEncoder.inverse_transform, list(map(np.argmax, train_histograms))))
-    train_max_accuracy = accuracy_score(slideLabelList, predictions)
+    #predictions = list(map(labelEncoder.inverse_transform, list(map(np.argmax, train_histograms))))
+    #train_max_accuracy = accuracy_score(slideLabelList, predictions)
     # print(accuracy)
-    confusion = confusion_matrix(slideLabelList, predictions)
-    print("Max Accuracy: %0.5f" % train_max_accuracy)
-    print("Max Confusion: \n%s" % str(confusion))
+    #confusion = confusion_matrix(slideLabelList, predictions)
+    #print("Max Accuracy: %0.5f" % train_max_accuracy)
+    #print("Max Confusion: \n%s" % str(confusion))
 
-    logreg_model = train_logreg.train_logreg_from_histograms_and_labels(train_histograms, slideLabelList)
-    train_logreg_acccuracy, train_logreg_confusion = train_logreg.test_given_logreg(train_histograms, slideLabelList, logreg_model)
-    print("LogReg Accuracy: %0.5f" % train_logreg_acccuracy)
-    print("LogReg Confusion: \n%s" % str(train_logreg_confusion))
+    #logreg_model = train_logreg.train_logreg_from_histograms_and_labels(train_histograms, slideLabelList)
+    #train_logreg_acccuracy, train_logreg_confusion = train_logreg.test_given_logreg(train_histograms, slideLabelList, logreg_model)
+    #print("LogReg Accuracy: %0.5f" % train_logreg_acccuracy)
+    #print("LogReg Confusion: \n%s" % str(train_logreg_confusion))
 
-    if logreg_model_savepath is not None:
-        train_logreg.save_logreg_model(logreg_model, logreg_model_savepath + "_" + str(epochnum) + ".model")
+    #if logreg_model_savepath is not None:
+    #    train_logreg.save_logreg_model(logreg_model, logreg_model_savepath + "_" + str(epochnum) + ".model")
 
 
     ### End Testing MAX predict ###
@@ -308,7 +313,7 @@ def find_discriminative_patches(trainSlideData, netAccess, spatial_smoothing,
     return H, disc_patches, train_predict_accuracy, train_max_accuracy, train_logreg_acccuracy
 
 def train_on_discriminative_patches(trainSlideData, valSlideData, netAccess, H, initial_epochnum, num_epochs, num_patches,
-                                    dropout_ratio, learning_rate, sess, do_augment=False, runName=""):
+                                    dropout_ratio, learning_rate, sess, do_augment=False, runName="", logregSavePath=None):
 
     slideList = trainSlideData.getSlideList()
 
@@ -331,14 +336,17 @@ def train_on_discriminative_patches(trainSlideData, valSlideData, netAccess, H, 
 
         train_accuracy = train.train_given_net(netAccess,
                             num_patches, train_iterator,
-                            num_epochs=num_epochs, dropout_ratio=dropout_ratio, learning_rate=learning_rate, sess=sess,
-                              val_iterator=train_iterator, val_iterator_len=num_patches, runName=runName)
+                            num_epochs=1, dropout_ratio=dropout_ratio, learning_rate=learning_rate, sess=sess,
+                              val_iterator=train_iterator, val_iterator_len=num_patches, runName=runName, actualEpoch=actualEpoch)
+
+        # Train logreg model with current net
+        logregModel = train_logreg.train_logreg(netAccess, logregSavePath, trainSlideData, dropout_ratio, sess)
 
 
+        evaluate.evaluateNet(netAccess, logregModel, valSlideData, actualEpoch, sess=sess, dropout=dropout_ratio,
+                             runName=runName)
         actualEpoch +=1
 
-        evaluate.evaluateNet(netAccess, None, valSlideData, actualEpoch, sess=sess, dropout=dropout_ratio,
-                             runName=runName)
     return train_accuracy
 
 

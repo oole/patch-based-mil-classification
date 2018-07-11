@@ -3,10 +3,23 @@ from sklearn.externals import joblib
 import data_tf
 from sklearn.utils import shuffle
 from sklearn.metrics import accuracy_score, confusion_matrix
+import predict
 
+def train_logreg(netAccess, savepath, trainSlideData, dropout,  sess):
+    slideHistograms = []
+    for i in range(trainSlideData.getNumberOfSlides()):
+        slideIterator = trainSlideData.getIterators(netAccess)[i]
+        slideIteratorLen = len(trainSlideData.getSlideList()[i])
+        sess.run(slideIterator.initializer)
+        slideIteratorHandle = sess.run(slideIterator.string_handle())
+        slide_y_pred, slide_y_pred_prob, slide_y_pred_argmax = \
+            predict.predict_given_net(slideIteratorHandle, slideIteratorLen,
+                                      netAccess, batch_size=netAccess.getBatchSize(), dropout_ratio=dropout, sess=sess)
+        histogram = predict.histogram_for_predictions(slide_y_pred_argmax)
+        slideHistograms.append(histogram)
 
-
-
+    logregModel = train_logreg_from_histograms_and_labels(slideHistograms, trainSlideData.getSlideLabelList(), savepath)
+    return logregModel
 
 def train_logreg_from_histograms_and_labels(histograms, labels, savepath=None):
     model = LogisticRegression(verbose=1)

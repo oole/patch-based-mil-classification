@@ -18,6 +18,7 @@ def evaluateNet(netAccess: netutil.NetAccess, logRegModel, valSlideList: data_tf
     for i in range(valSlideList.getNumberOfSlides()):
         slideIterator = valSlideList.getIterators(netAccess)[i]
         slideIteratorLen = len(valSlideList.getSlideList()[i])
+        sess.run(slideIterator.initializer)
         slideIteratorHandle = sess.run(slideIterator.string_handle())
         slide_y_pred, slide_y_pred_prob, slide_y_pred_argmax = \
             predict.predict_given_net(slideIteratorHandle, slideIteratorLen,
