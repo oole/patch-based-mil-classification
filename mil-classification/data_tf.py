@@ -6,7 +6,7 @@ import pickle
 import re
 from sklearn.model_selection import train_test_split
 import dataset
-
+import tensorflow as tf
 
 
 """
@@ -249,9 +249,10 @@ class SlideData:
         self.slideDimensionList = slideDimensionList
         self.numberOfPatches = numberOfPatches
         self.slideLabelList = slideLabelList
-        self.slideIterators = None
         self.getLabel = getLabel
         self.doAugment = doAugment
+        self.slideIterator = None
+        self.iteratorInitOps = None
 
     def getSlideList(self):
         return self.slideList
@@ -280,24 +281,54 @@ class SlideData:
     def getDoAugment(self):
         return self.doAugment
 
-    def getIterators(self, netAccess):
-        iterators = []
-        if self.slideIterators is None:
-            for slide in self.slideList:
-                if self.doAugment:
-                    slideDataset = dataset.img_dataset_augment(slide, batch_size=netAccess.getBatchSize(),
+    def getIterator(self, netAccess=None, batchSize=None):
+        if netAccess is not None and batchSize is not None:
+            print("Explicit batchSize will overwrite netAccess batchSize")
+        if netAccess is not None and batchSize is None:
+            batchSize = netAccess.getBatchSize()
+        if netAccess is None and batchSize is None:
+            raise ValueError("Either netAcess or batchSize must be given.")
+
+        # Create if they do not exist yet
+        if (self.slideIterator is None or self.iteratorInitOps is None):
+            print("INFO: Creating datasets and iterators.")
+            if self.doAugment:
+                slideDataset = dataset.img_dataset_augment(self.getSlideList()[0], batch_size=batchSize,
+                                                           shuffle_buffer_size=None, shuffle=False,
+                                                           getlabel=self.getLabelFunc())
+
+                iterator = tf.data.Iterator.from_structure(slideDataset.output_types,
+                                                           slideDataset.output_shapes)
+
+                iteratorOps = []
+                for slide in self.getSlideList():
+                    slideDataset = dataset.img_dataset_augment(slide, batch_size=batchSize,
                                                                shuffle_buffer_size=None, shuffle=False,
                                                                getlabel=self.getLabelFunc())
-                else:
-                    slideDataset = dataset.img_dataset(slide, batch_size=netAccess.getBatchSize(), getlabel=self.getLabelFunc())
+                    init_op = iterator.make_initializer(slideDataset)
+                    iteratorOps.append(init_op)
+                self.slideIterator = iterator
+                self.iteratorInitOps = iteratorOps
+            else:
+                slideDataset = dataset.img_dataset(self.getSlideList()[0], batch_size=batchSize,
+                                                           shuffle_buffer_size=None, shuffle=False,
+                                                           getlabel=self.getLabelFunc())
 
-                slideIterator = slideDataset.make_initializable_iterator()
-                iterators.append(slideIterator)
-            self.slideIterators = iterators
+                iterator = tf.data.Iterator.from_structure(slideDataset.output_types,
+                                                           slideDataset.output_shapes)
 
-            if len(self.slideIterators)!= len(self.slideList):
-                raise ValueError("Iterators could not be created.")
-        return self.slideIterators
+                iteratorOps = []
+                for slide in self.getSlideList():
+                    slideDataset = dataset.img_dataset(slide, batch_size=batchSize,
+                                                               shuffle_buffer_size=None, shuffle=False,
+                                                               getlabel=self.getLabelFunc())
+                    init_op = iterator.make_initializer(slideDataset)
+                    iteratorOps.append(init_op)
+                self.slideIterator = iterator
+                self.iteratorInitOps = iteratorOps
+
+        # Return existing iterator and initOps
+        return self.slideIterator, self.iteratorInitOps
 
 def splitSlideLists(trainSlideData, valSlideData):
     splitResult = train_test_split(trainSlideData.getSlideList(), valSlideData.getSlideList(),

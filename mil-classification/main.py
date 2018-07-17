@@ -143,7 +143,7 @@ def train_augment_csv(train_csv="/home/oole/Data/nice_data/train.csv", test_csv=
     simple_train_savepath = "/home/oole/tfnetsave/tfnet_em_full"
     em_train_savepath = "/home/oole/tfnetsave/tfnet_em_full"
 
-    initial_epoch = 2
+    initial_epoch = 0
 
 
     logfile_path = "/home/oole/tfnetsave/tfnet_log.csv"
@@ -151,7 +151,7 @@ def train_augment_csv(train_csv="/home/oole/Data/nice_data/train.csv", test_csv=
 
 
     model_name = "model"
-    runName = "completeRun2/"
+    runName = "run180712/"
 
     labelEncoder = data_tf.labelencoder()
 
@@ -164,10 +164,10 @@ def train_augment_csv(train_csv="/home/oole/Data/nice_data/train.csv", test_csv=
     #test purposes
     #trainSlideData, valSlideData = data_tf.getTestSizeData(trainSlideData, valSlideData, 20)
     # Initial training
-    # train_accuracy, val_accuracy, netAcc = train.train_net(trainSlideData, valSlideData, num_epochs=2, batch_size=batch_size,
-    #                                               savepath=simple_train_savepath, do_augment=True, model_name=model_name,
-    #                                                getlabel_train=data_tf.getlabel_new, log_savepath=logfile_path, runName=runName)
-    # initial_epoch +=2
+    train_accuracy, val_accuracy, netAcc = train.train_net(trainSlideData, valSlideData, num_epochs=2, batch_size=batch_size,
+                                                   savepath=simple_train_savepath, do_augment=True, model_name=model_name,
+                                                    getlabel_train=data_tf.getlabel_new, log_savepath=logfile_path, runName=runName)
+    initial_epoch +=2
     # print("Simpletrain Done")
 
     # util.write_log_file(logfile_path, train_accuracy=train_accuracy, val_accuracy=val_accuracy)
@@ -183,6 +183,6 @@ def train_augment_csv(train_csv="/home/oole/Data/nice_data/train.csv", test_csv=
                      spatial_smoothing=SPATIALSMOOTHING,
                      do_augment=DOAUGMENT,
                      num_epochs=EPOCHS, dropout_ratio=DROPOUT, learning_rate=LR, sanity_check=SANITYCHECK,
-                     logfile_path=logfile_path, logreg_savepath=logreg_savepath, runName=runName, netAcc=None)
+                     logfile_path=logfile_path, logreg_savepath=logreg_savepath, runName=runName, netAcc=netAcc)
 
 train_augment_csv()

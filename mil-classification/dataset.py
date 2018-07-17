@@ -72,9 +72,9 @@ def img_dataset(images, batch_size, getlabel, shuffle_buffer_size=None, shuffle=
         raise Exception("If shuffle==True shuffle_buffer_size must be set!")
 
     tr_data = tf.data.Dataset.from_tensor_slices((images, labels))
-    tr_data = tr_data.map(input_parser_imglabel)
     if shuffle:
         tr_data = tr_data.shuffle(buffer_size=shuffle_buffer_size)
+    tr_data = tr_data.map(input_parser_imglabel)
     tr_data = tr_data.batch(batch_size)
     return tr_data
 
@@ -83,9 +83,9 @@ def img_dataset_nolabel(images, batch_size, shuffle_buffer_size=None, shuffle=Fa
         raise Exception("If shuffle==True shuffle_buffer_size must be set!")
 
     tr_data = tf.data.Dataset.from_tensor_slices(images)
-    tr_data = tr_data.map(input_parser)
     if shuffle:
         tr_data = tr_data.shuffle(buffer_size=shuffle_buffer_size)
+    tr_data = tr_data.map(input_parser)
     tr_data = tr_data.batch(batch_size)
     return tr_data
 

@@ -68,7 +68,7 @@ def emtrain(trainSlideData, valSlideData,
         while True:
 
             ##
-            H, disc_patches_new, train_predict_accuracy, train_max_accuracy, train_logreg_acccuracy = \
+            H, disc_patches_new = \
                 find_discriminative_patches(splitTrainSlideData,
                                             netAcc,
                                             spatial_smoothing,
@@ -85,8 +85,8 @@ def emtrain(trainSlideData, valSlideData,
             old_disc_patches = disc_patches_new
             iteration = iteration + 1
 
-            util.write_log_file(logfile_path, epochNum=epochnum, trainPredictAccuracy=train_predict_accuracy, trainMaxAccuracy=train_max_accuracy,
-                                trainLogRegAcccuracy=train_logreg_acccuracy, trainAccuracy=train_accuracy,
+            util.write_log_file(logfile_path, epochNum=epochnum, trainPredictAccuracy="", trainMaxAccuracy="",
+                                trainLogRegAcccuracy="", trainAccuracy=train_accuracy,
                                 valAccuracy=val_accuracy)
             if savepath is not None:
                 saver.save(sess, savepath)
@@ -130,6 +130,7 @@ def find_discriminative_patches(trainSlideData, netAccess, spatial_smoothing,
 
     number_of_correct_pred = 0
     train_histograms = []
+    predIterator, predIteratorInitOps = trainSlideData.getIterator(netAccess=netAccess)
     for i in range(trainSlideData.getNumberOfSlides()):
         gc.collect()
         # This is where the spatial structure should be recovered
@@ -150,11 +151,11 @@ def find_discriminative_patches(trainSlideData, netAccess, spatial_smoothing,
 
         pred_iterator_len = len(patches)
 
-        pred_iterator =  trainSlideData.getIterators(netAccess)[i]
 
-        sess.run(pred_iterator.initializer)
 
-        pred_iterator_handle = sess.run(pred_iterator.string_handle())
+        sess.run(predIteratorInitOps[i])
+
+        pred_iterator_handle = sess.run(predIterator.string_handle())
 
         slide_y_pred, slide_y_pred_prob, slide_y_pred_argmax = predict.predict_given_net(pred_iterator_handle, pred_iterator_len, netAccess,
                                                                       batch_size=batchSize, dropout_ratio=dropout_ratio, sess=sess)
@@ -310,7 +311,7 @@ def find_discriminative_patches(trainSlideData, netAccess, spatial_smoothing,
     disc_patches = sum(np.count_nonzero(h) for h in H)
 
 
-    return H, disc_patches, train_predict_accuracy, train_max_accuracy, train_logreg_acccuracy
+    return H, disc_patches #, train_predict_accuracy, train_max_accuracy, train_logreg_acccuracy
 
 def train_on_discriminative_patches(trainSlideData, valSlideData, netAccess, H, initial_epochnum, num_epochs, num_patches,
                                     dropout_ratio, learning_rate, sess, do_augment=False, runName="", logregSavePath=None):

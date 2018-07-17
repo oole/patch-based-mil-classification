@@ -7,11 +7,11 @@ import predict
 
 def train_logreg(netAccess, savepath, trainSlideData, dropout,  sess):
     slideHistograms = []
+    iterator, iteratorInitOps = trainSlideData.getIterator(netAccess)
     for i in range(trainSlideData.getNumberOfSlides()):
-        slideIterator = trainSlideData.getIterators(netAccess)[i]
         slideIteratorLen = len(trainSlideData.getSlideList()[i])
-        sess.run(slideIterator.initializer)
-        slideIteratorHandle = sess.run(slideIterator.string_handle())
+        sess.run(iteratorInitOps[i])
+        slideIteratorHandle = sess.run(iterator.string_handle())
         slide_y_pred, slide_y_pred_prob, slide_y_pred_argmax = \
             predict.predict_given_net(slideIteratorHandle, slideIteratorLen,
                                       netAccess, batch_size=netAccess.getBatchSize(), dropout_ratio=dropout, sess=sess)

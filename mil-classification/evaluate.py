@@ -14,16 +14,16 @@ def evaluateNet(netAccess: netutil.NetAccess, logRegModel, valSlideList: data_tf
 
     slideHistograms = []
     simpleAccuracies = []
-
+    iterator, iteratorInitOps = valSlideList.getIterator(netAccess)
     for i in range(valSlideList.getNumberOfSlides()):
-        slideIterator = valSlideList.getIterators(netAccess)[i]
-        slideIteratorLen = len(valSlideList.getSlideList()[i])
-        sess.run(slideIterator.initializer)
-        slideIteratorHandle = sess.run(slideIterator.string_handle())
+        iteratorLen = len(valSlideList.getSlideList()[i])
+        sess.run(iteratorInitOps[i])
+        iteratorHandle = sess.run(iterator.string_handle())
         slide_y_pred, slide_y_pred_prob, slide_y_pred_argmax = \
-            predict.predict_given_net(slideIteratorHandle, slideIteratorLen,
-                                      netAccess,batch_size=netAccess.getBatchSize(), dropout_ratio=dropout, sess=sess)
-        simpleAccuracy = accuracy_score([valSlideList.getSlideLabelList()[i]] * slideIteratorLen, list(map(valSlideList.getLabelEncoder().inverse_transform, slide_y_pred_argmax)))
+            predict.predict_given_net(iteratorHandle, iteratorLen,
+                                      netAccess, batch_size=netAccess.getBatchSize(), dropout_ratio=dropout, sess=sess)
+        simpleAccuracy = accuracy_score([valSlideList.getSlideLabelList()[i]] * iteratorLen, list(
+            map(valSlideList.getLabelEncoder().inverse_transform, slide_y_pred_argmax)))
         simpleAccuracies.append(simpleAccuracy)
         histogram = predict.histogram_for_predictions(slide_y_pred_argmax)
         slideHistograms.append(histogram)
@@ -41,3 +41,5 @@ def evaluateNet(netAccess: netutil.NetAccess, logRegModel, valSlideList: data_tf
     util.writeScalarSummary(sum(simpleAccuracies)/valSlideList.getNumberOfSlides(), "simpleAccuracyVal", netAccess.getSummmaryWriter(runName, sess.graph),
                             step=step)
     util.writeScalarSummary(maxAccuracy, "maxAccuracyVal", netAccess.getSummmaryWriter(runName, sess.graph), step=step)
+
+    netAccess.getSummmaryWriter(runName, sess.graph).flush()
