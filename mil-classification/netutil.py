@@ -107,6 +107,8 @@ def build_model(scope, x, y,
         correct_prediction = tf.equal(y_argmax, tf.argmax(y, 1))
         accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
 
+        image_summary_t = tf.cond(is_training, lambda: tf.summary.image("Training", x, max_outputs=1), lambda: tf.summary.image("Testing", x, max_outputs=1))
+        # image_summary_t = tf.summary.image("Training", x, max_outputs=1)
         return NetAccess(train, loss, y, accuracy, x, keep_prob, learning_rate, is_training, y_pred, y_argmax, y_pred_prob, globalStep)
 
 class NetAccess:
@@ -126,6 +128,7 @@ class NetAccess:
         self.batchSize = batchSize
         self.shuffleBufferSize = shuffleBufferSize
         self.summaryWriter=None
+        self.imageSummary = image_summary_t
 
     def getTrain(self):
         return self.train
@@ -182,6 +185,10 @@ class NetAccess:
             self.summaryWriter = tf.summary.FileWriter("/home/oole/tboard/" + run, graph)
 
         return self.summaryWriter
+
+    def getImageSummary(self):
+        return self.imageSummary
+
 
 
 
