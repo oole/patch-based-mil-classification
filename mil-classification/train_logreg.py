@@ -7,7 +7,7 @@ import predict
 
 def train_logreg(netAccess, savepath, trainSlideData, dropout,  sess):
     slideHistograms = []
-    iterator, iteratorInitOps = trainSlideData.getIterator(netAccess)
+    iterator, iteratorInitOps = trainSlideData.getIterator(netAccess, augment=True)
     for i in range(trainSlideData.getNumberOfSlides()):
         slideIteratorLen = len(trainSlideData.getSlideList()[i])
         sess.run(iteratorInitOps[i])

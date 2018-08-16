@@ -5,9 +5,8 @@ import numpy as np
 import pickle
 import re
 from sklearn.model_selection import train_test_split
-import dataset
 import tensorflow as tf
-
+import dataset
 
 """
 Check patch name for classname and return it
@@ -244,15 +243,21 @@ def collect_data_csv(train_csv, getLabel, doAugment=True):
 
 
 class SlideData:
-    def __init__(self, slideList, slideDimensionList, numberOfPatches, slideLabelList, getLabel, doAugment):
+    def __init__(self, slideList, slideDimensionList, numberOfPatches, slideLabelList, getLabel, doAugment,
+                 labelencoder=labelencoder(), parseFunctionAugment=dataset.input_parser_imglabel_augment, parseFunction=dataset.input_parser_imglabel_no_augment):
         self.slideList= slideList
         self.slideDimensionList = slideDimensionList
         self.numberOfPatches = numberOfPatches
         self.slideLabelList = slideLabelList
         self.getLabel = getLabel
         self.doAugment = doAugment
-        self.slideIterator = None
-        self.iteratorInitOps = None
+        self.slideIteratorAugment = None
+        self.iteratorInitOpsAugment = None
+        self.slideIteratorNormal = None
+        self.iteratorInitOpsNormal = None
+        self.labelEncoder = labelencoder
+        self.parseFunctionAugment = parseFunctionAugment
+        self.parseFunction = parseFunction
 
     def getSlideList(self):
         return self.slideList
@@ -281,7 +286,13 @@ class SlideData:
     def getDoAugment(self):
         return self.doAugment
 
-    def getIterator(self, netAccess=None, batchSize=None):
+    def getparseFunctionAugment(self):
+        return self.parseFunctionAugment
+
+    def getparseFunctionNormal(self):
+        return self.parseFunction
+
+    def getIterator(self, netAccess=None, batchSize=None, augment=True):
         if netAccess is not None and batchSize is not None:
             print("Explicit batchSize will overwrite netAccess batchSize")
         if netAccess is not None and batchSize is None:
@@ -289,69 +300,163 @@ class SlideData:
         if netAccess is None and batchSize is None:
             raise ValueError("Either netAcess or batchSize must be given.")
 
+        returnIterator = None
+        returnIteratorInitOps = None
         # Create if they do not exist yet
-        if (self.slideIterator is None or self.iteratorInitOps is None):
-            print("INFO: Creating datasets and iterators.")
-            if self.doAugment:
-                slideDataset = dataset.img_dataset_augment(self.getSlideList()[0], batch_size=batchSize,
-                                                           shuffle_buffer_size=None, shuffle=False,
-                                                           getlabel=self.getLabelFunc())
-
-                iterator = tf.data.Iterator.from_structure(slideDataset.output_types,
-                                                           slideDataset.output_shapes)
-
-                iteratorOps = []
-                for slide in self.getSlideList():
-                    slideDataset = dataset.img_dataset_augment(slide, batch_size=batchSize,
+        if augment:
+            if (self.slideIteratorAugment is None or self.iteratorInitOpsAugment is None):
+                print("INFO: Creating datasets and iterators.")
+                if self.doAugment:
+                    slideDataset = dataset.img_dataset_augment(self.getSlideList()[0], batch_size=batchSize,
                                                                shuffle_buffer_size=None, shuffle=False,
-                                                               getlabel=self.getLabelFunc())
-                    init_op = iterator.make_initializer(slideDataset)
-                    iteratorOps.append(init_op)
-                self.slideIterator = iterator
-                self.iteratorInitOps = iteratorOps
-            else:
-                slideDataset = dataset.img_dataset(self.getSlideList()[0], batch_size=batchSize,
+                                                               getlabel=self.getLabelFunc(),
+                                                               labelEncoder=self.labelEncoder,
+                                                               parseFunctionAugment=self.parseFunctionAugment)
+
+                    iterator = tf.data.Iterator.from_structure(slideDataset.output_types,
+                                                               slideDataset.output_shapes)
+
+                    iteratorOps = []
+                    for slide in self.getSlideList():
+                        slideDataset = dataset.img_dataset_augment(slide, batch_size=batchSize,
+                                                                   shuffle_buffer_size=None, shuffle=False,
+                                                                   getlabel=self.getLabelFunc(),
+                                                                   labelEncoder=self.labelEncoder,
+                                                                   parseFunctionAugment=self.parseFunctionAugment)
+                        init_op = iterator.make_initializer(slideDataset)
+                        iteratorOps.append(init_op)
+                    self.slideIteratorAugment = iterator
+                    self.iteratorInitOpsAugment = iteratorOps
+                else:
+                    slideDataset = dataset.img_dataset(self.getSlideList()[0], batch_size=batchSize,
+                                                       shuffle_buffer_size=None, shuffle=False,
+                                                       getlabel=self.getLabelFunc(),
+                                                       labelEncoder=self.labelEncoder,
+                                                       parseFunction=self.parseFunction)
+
+                    iterator = tf.data.Iterator.from_structure(slideDataset.output_types,
+                                                               slideDataset.output_shapes)
+
+                    iteratorOps = []
+                    for slide in self.getSlideList():
+                        slideDataset = dataset.img_dataset(slide, batch_size=batchSize,
                                                            shuffle_buffer_size=None, shuffle=False,
-                                                           getlabel=self.getLabelFunc())
+                                                           getlabel=self.getLabelFunc(),
+                                                           labelEncoder=self.labelEncoder,
+                                                           parseFunction=self.parseFunction)
+                        init_op = iterator.make_initializer(slideDataset)
+                        iteratorOps.append(init_op)
+                    self.slideIteratorAugment = iterator
+                    self.iteratorInitOpsAugment = iteratorOps
 
-                iterator = tf.data.Iterator.from_structure(slideDataset.output_types,
-                                                           slideDataset.output_shapes)
+            returnIterator = self.slideIteratorAugment
+            returnIteratorInitOps = self.iteratorInitOpsAugment
 
-                iteratorOps = []
-                for slide in self.getSlideList():
-                    slideDataset = dataset.img_dataset(slide, batch_size=batchSize,
+        else:
+            if (self.slideIteratorNormal is None or self.iteratorInitOpsNormal is None):
+                print("INFO: Creating datasets and iterators.")
+                if self.doAugment:
+                    slideDataset = dataset.img_dataset_augment(self.getSlideList()[0], batch_size=batchSize,
                                                                shuffle_buffer_size=None, shuffle=False,
-                                                               getlabel=self.getLabelFunc())
-                    init_op = iterator.make_initializer(slideDataset)
-                    iteratorOps.append(init_op)
-                self.slideIterator = iterator
-                self.iteratorInitOps = iteratorOps
+                                                               getlabel=self.getLabelFunc(),
+                                                               labelEncoder=self.labelEncoder,
+                                                               parseFunctionAugment=self.parseFunction)
+
+                    iterator = tf.data.Iterator.from_structure(slideDataset.output_types,
+                                                               slideDataset.output_shapes)
+
+                    iteratorOps = []
+                    for slide in self.getSlideList():
+                        slideDataset = dataset.img_dataset_augment(slide, batch_size=batchSize,
+                                                                   shuffle_buffer_size=None, shuffle=False,
+                                                                   getlabel=self.getLabelFunc(),
+                                                                   labelEncoder=self.labelEncoder,
+                                                                   parseFunctionAugment=self.parseFunction)
+                        init_op = iterator.make_initializer(slideDataset)
+                        iteratorOps.append(init_op)
+                    self.slideIteratorNormal = iterator
+                    self.iteratorInitOpsAugment = iteratorOps
+                else:
+                    slideDataset = dataset.img_dataset(self.getSlideList()[0], batch_size=batchSize,
+                                                       shuffle_buffer_size=None, shuffle=False,
+                                                       getlabel=self.getLabelFunc(),
+                                                       labelEncoder=self.labelEncoder,
+                                                       parseFunction=self.parseFunction)
+
+                    iterator = tf.data.Iterator.from_structure(slideDataset.output_types,
+                                                               slideDataset.output_shapes)
+
+                    iteratorOps = []
+                    for slide in self.getSlideList():
+                        slideDataset = dataset.img_dataset(slide, batch_size=batchSize,
+                                                           shuffle_buffer_size=None, shuffle=False,
+                                                           getlabel=self.getLabelFunc(),
+                                                           labelEncoder=self.labelEncoder,
+                                                           parseFunction=self.parseFunction)
+                        init_op = iterator.make_initializer(slideDataset)
+                        iteratorOps.append(init_op)
+                    self.slideIteratorNormal = iterator
+                    self.iteratorInitOpsNormal = iteratorOps
+
+            returnIterator = self.slideIteratorNormal
+            returnIteratorInitOps = self.iteratorInitOpsNormal
 
         # Return existing iterator and initOps
-        return self.slideIterator, self.iteratorInitOps
+        return returnIterator, returnIteratorInitOps
 
 def splitSlideLists(trainSlideData, valSlideData):
-    splitResult = train_test_split(trainSlideData.getSlideList(), valSlideData.getSlideList(),
-                                   trainSlideData.getSlideDimensionList(), valSlideData.getSlideDimensionList(),
-                                   trainSlideData.getSlideLabelList(), valSlideData.getSlideLabelList(),
-                                   stratify=trainSlideData.getSlideLabelList())
+    hasDim = True
+    if trainSlideData.getSlideDimensionList() is None:
+        hasDim = False
+        splitResult = train_test_split(trainSlideData.getSlideList(), valSlideData.getSlideList(),
+                                       trainSlideData.getSlideLabelList(), valSlideData.getSlideLabelList(),
+                                       stratify=trainSlideData.getSlideLabelList())
+    else:
+        splitResult = train_test_split(trainSlideData.getSlideList(), valSlideData.getSlideList(),
+                                       trainSlideData.getSlideDimensionList(), valSlideData.getSlideDimensionList(),
+                                       trainSlideData.getSlideLabelList(), valSlideData.getSlideLabelList(),
+                                       stratify=trainSlideData.getSlideLabelList())
 
-    trainSlideList = splitResult[0]
-    valSlideList = splitResult[3]
-    trainDimList = splitResult[4]
-    valDimList = splitResult[7]
-    trainLabelList = splitResult[8]
-    valLabelList = splitResult[11]
+    if hasDim:
+        trainSlideList = splitResult[0]
+        valSlideList = splitResult[3]
+        trainDimList = splitResult[4]
+        valDimList = splitResult[7]
+        trainLabelList = splitResult[8]
+        valLabelList = splitResult[11]
+    else:
+        trainSlideList = splitResult[0]
+        valSlideList = splitResult[3]
+        trainLabelList = splitResult[4]
+        valLabelList = splitResult[7]
 
-    if (len(trainSlideList) != len(trainDimList) != len(trainLabelList)):
-        raise ValueError("Split is wrong")
-    if (len(valSlideList) != len(valDimList) != len(valLabelList)):
-        raise ValueError("Split is wrong")
+    if hasDim:
+        if (len(trainSlideList) != len(trainDimList) != len(trainLabelList)):
+            raise ValueError("Split is wrong")
+        if (len(valSlideList) != len(valDimList) != len(valLabelList)):
+            raise ValueError("Split is wrong")
+    else:
+        if (len(trainSlideList) != len(trainLabelList)):
+            raise ValueError("Split is wrong")
+        if (len(valSlideList) != len(valLabelList)):
+            raise ValueError("Split is wrong")
+    if not hasDim:
+        trainDimList = None
+        valDimList = None
 
-    newTrainSlideData = SlideData(trainSlideList, trainDimList, np.asarray(trainSlideList).size, trainLabelList, trainSlideData.getLabelFunc(), trainSlideData.getDoAugment())
-    newTrainSlideData.setLabelEncoder(trainSlideData.getLabelEncoder())
-    newValSlideData = SlideData(valSlideList, valDimList, np.asarray(valSlideList).size, valLabelList, valSlideData.getLabelFunc(), valSlideData.getDoAugment())
-    newValSlideData.setLabelEncoder(valSlideData.getLabelEncoder())
+
+    newTrainSlideData = SlideData(trainSlideList, trainDimList, np.asarray(trainSlideList).size, trainLabelList,
+                                  trainSlideData.getLabelFunc(),
+                                  trainSlideData.getDoAugment(),
+                                  labelencoder=trainSlideData.getLabelEncoder(),
+                                  parseFunctionAugment=trainSlideData.getparseFunctionAugment(),
+                                  parseFunction=trainSlideData.getparseFunctionNormal())
+    newValSlideData = SlideData(valSlideList, valDimList, np.asarray(valSlideList).size, valLabelList,
+                                valSlideData.getLabelFunc(),
+                                valSlideData.getDoAugment(),
+                                labelencoder=valSlideData.getLabelEncoder(),
+                                parseFunctionAugment=valSlideData.getparseFunctionAugment(),
+                                parseFunction=valSlideData.getparseFunctionNormal())
 
     return newTrainSlideData, newValSlideData
 

@@ -26,7 +26,13 @@ def emtrain(trainSlideData, valSlideData,
             do_augment=True,
             num_epochs =2,
             dropout_ratio=0.5,
-            learning_rate=0.0005, sanity_check=False, logfile_path=None, logreg_savepath=None, runName="", netAcc=None):
+            learning_rate=0.0005,
+            sanity_check=False,
+            logfile_path=None,
+            logreg_savepath=None,
+            runName="",
+            netAcc=None,
+            buildNet=netutil.build_model):
 
     iteration = 0
 
@@ -41,31 +47,30 @@ def emtrain(trainSlideData, valSlideData,
         if (netAcc is None):
             create_iterator_patch = dataset.slidelist_to_patchlist(splitTrainSlideData.getSlideList())
             create_iterator_dataset = dataset.img_dataset_augment(create_iterator_patch, batch_size=batch_size,
-                                                                  shuffle_buffer_size=shuffle_buffer_size, shuffle=False,  getlabel=data_tf.getlabel)
+                                                                  shuffle_buffer_size=shuffle_buffer_size, shuffle=False,
+                                                                  getlabel=splitTrainSlideData.getLabelFunc(),
+                                                                  labelEncoder=splitTrainSlideData.getLabelEncoder(),
+                                                                  parseFunctionAugment=splitTrainSlideData.getparseFunctionAugment())
             create_iterator_iter = create_iterator_dataset.make_one_shot_iterator()
             proxy_iterator_handle_ph= tf.placeholder(tf.string, shape=[])
             proxy_iterator = tf.data.Iterator.from_string_handle(proxy_iterator_handle_ph, output_types=create_iterator_iter.output_types,
                                                                  output_shapes=create_iterator_iter.output_shapes)
             x, y = proxy_iterator.get_next()
-            netAcc = netutil.build_model(model_name, x, y, use_bn_1=True, use_bn_2=True, use_dropout_1=True, use_dropout_2=True)
+            netAcc = buildNet(model_name, x, y, use_bn_1=True, use_bn_2=True, use_dropout_1=True, use_dropout_2=True,  batchSize=batch_size)
             netAcc.setIteratorHandle(proxy_iterator_handle_ph)
 
 
-
-
-
-
-        # model saver
-        saver = tf.train.Saver()
-        ########################
-        # load model from disc
-        saver.restore(sess, loadpath)
+            # model saver
+            saver = tf.train.Saver()
+            ########################
+            # load model from disc
+            saver.restore(sess, loadpath)
 
 
 
         netAcc.getSummmaryWriter(runName, sess.graph)
 
-        while True:
+        while epochnum <= num_epochs + initial_epochnum:
 
             ##
             H, disc_patches_new = \
@@ -78,10 +83,10 @@ def emtrain(trainSlideData, valSlideData,
 
             gc.collect()
 
-            train_accuracy, val_accuracy = train_on_discriminative_patches(splitTrainSlideData, valSlideData, netAcc, H, epochnum, num_epochs, disc_patches_new,
+            train_accuracy, val_accuracy = train_on_discriminative_patches(splitTrainSlideData, valSlideData, netAcc, H, epochnum, 2, disc_patches_new,
                                             dropout_ratio=dropout_ratio, learning_rate=learning_rate, sess=sess, do_augment=do_augment, runName=runName, logregSavePath=logreg_savepath)
 
-            epochnum += num_epochs
+            epochnum += 2
             old_disc_patches = disc_patches_new
             iteration = iteration + 1
 
@@ -143,7 +148,7 @@ def find_discriminative_patches(trainSlideData, netAccess, spatial_smoothing,
         # get true label
         label = [slideLabelList[i]]
 
-        if label != np.asarray(data_tf.getlabel(patches[1])):
+        if label != np.asarray(trainSlideData.getLabelFunc()(patches[1])):
             raise Exception("ERROR, labels do not correspond")
 
         num_label = labelEncoder.transform(np.asarray(label))
@@ -327,7 +332,10 @@ def train_on_discriminative_patches(trainSlideData, valSlideData, netAccess, H, 
 
     if do_augment:
         train_dataset = dataset.img_dataset_augment(train_patches, batch_size=batchSize,
-                                            shuffle_buffer_size=shuffle_buffer_size, shuffle=True, getlabel=data_tf.getlabel_new)
+                                                    shuffle_buffer_size=shuffle_buffer_size, shuffle=True,
+                                                    getlabel=trainSlideData.getLabelFunc(),
+                                                    labelEncoder=trainSlideData.getLabelEncoder(),
+                                                    parseFunctionAugment=trainSlideData.getparseFunctionAugment())
     else:
         train_dataset = dataset.img_dataset(train_patches, batch_size=batchSize,
                                                     shuffle_buffer_size=shuffle_buffer_size, shuffle=True)

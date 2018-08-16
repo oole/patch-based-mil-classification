@@ -31,12 +31,13 @@ def build_model(scope, x, y,
                 use_bn_1=True,
                 use_bn_2=True,
                 use_dropout_1=True,
-                use_dropout_2=True):
+                use_dropout_2=True, batchSize=64):
     with tf.variable_scope(scope):
         globalStep = tf.Variable(0, name='global_step', trainable=False)
 
         is_training = tf.placeholder(tf.bool, name='phase')
         keep_prob = tf.placeholder(tf.float32)
+
 
         #x = tf.placeholder(tf.float32, shape=[None, 400,400,3])
 
@@ -109,10 +110,11 @@ def build_model(scope, x, y,
 
         image_summary_t = tf.cond(is_training, lambda: tf.summary.image("Training", x, max_outputs=1), lambda: tf.summary.image("Testing", x, max_outputs=1))
         # image_summary_t = tf.summary.image("Training", x, max_outputs=1)
-        return NetAccess(train, loss, y, accuracy, x, keep_prob, learning_rate, is_training, y_pred, y_argmax, y_pred_prob, globalStep)
+
+        return NetAccess(train, loss, y, accuracy, x, image_summary_t, keep_prob, learning_rate, is_training, y_pred, y_argmax, y_pred_prob, globalStep, batchSize=batchSize)
 
 class NetAccess:
-    def __init__(self, train, loss, y, accuracy, x, keep_prob, learning_rate, is_training, y_pred, y_argmax, y_pred_prob,
+    def __init__(self, train, loss, y, accuracy, x, image_summary_t, keep_prob, learning_rate, is_training, y_pred, y_argmax, y_pred_prob,
                  globalStep, batchSize=64, shuffleBufferSize=2048):
         self.train = train
         self.loss= loss
@@ -191,5 +193,10 @@ class NetAccess:
 
 
 
+# def loadNet(netBuilder, modelName, loadPath, batchSize, session):
+#     netAcc = netBuilder(
+#         modelName, x, y, use_bn_1=True, use_bn_2=True, use_dropout_1=True, use_dropout_2=True, batchSize=batchSize)
+#
+#     tf.train.Saver().restore(session, loadPath)
 
 # train, loss, y, accuracy, x, keep_prob, learning_rate = build_model('lol')
