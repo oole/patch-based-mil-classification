@@ -17,15 +17,17 @@ EPOCHNUMBER = 1
 
 def train_net(trainSlideData , valSlideData=None, getlabel_train=data_tf.getlabel_new, num_epochs=2, batch_size=64, do_augment=True,
               dropout_ratio=0.5, lr=0.0005, savepath=None, shuffle_buffer_size=2048, loadpath=None, model_name="modelname", sess=tf.Session(), log_savepath=None, runName="",
-              buildNet= netutil.build_model):
-    trainSlideData, valSlideData = data_tf.splitSlideLists(trainSlideData, valSlideData)
+              buildNet= netutil.build_model, valIsTestData=False):
+    if not valIsTestData:
+        trainSlideData, valSlideData = data_tf.splitSlideLists(trainSlideData, valSlideData)
+
     train_patches = dataset.slidelist_to_patchlist(trainSlideData.getSlideList())
     val_patches = dataset.slidelist_to_patchlist(valSlideData.getSlideList())
     np.random.shuffle(train_patches)
     if do_augment:
         train_dataset = dataset.img_dataset_augment(train_patches, batch_size=batch_size,
                                                     shuffle_buffer_size=shuffle_buffer_size, shuffle=True,
-                                                    getlabel = getlabel_train,
+                                                    getlabel = trainSlideData.getLabelFunc(),
                                                     labelEncoder=trainSlideData.getLabelEncoder(),
                                                     parseFunctionAugment=trainSlideData.getparseFunctionAugment())
         train_iterator = train_dataset.make_initializable_iterator()
@@ -35,7 +37,7 @@ def train_net(trainSlideData , valSlideData=None, getlabel_train=data_tf.getlabe
         train_iterator = train_dataset.make_initializable_iterator()
 
     val_dataset = dataset.img_dataset(val_patches, batch_size=batch_size,
-                                      getlabel=getlabel_train,
+                                      getlabel=valSlideData.getLabelFunc(),
                                       labelEncoder=valSlideData.getLabelEncoder(),
                                       parseFunction=valSlideData.getparseFunctionNormal())
 

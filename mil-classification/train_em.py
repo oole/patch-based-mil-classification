@@ -32,25 +32,27 @@ def emtrain(trainSlideData, valSlideData,
             logreg_savepath=None,
             runName="",
             netAcc=None,
-            buildNet=netutil.build_model):
+            buildNet=netutil.build_model,
+            valIsTestData=False):
 
     iteration = 0
 
     epochnum = initial_epochnum
     # get_per_class_instances(trainSlideData, label_encoder)
 
-    splitTrainSlideData, splitValSlideData = data_tf.splitSlideLists(trainSlideData, valSlideData)
+    if not valIsTestData:
+        trainSlideData, valSlideData = data_tf.splitSlideLists(trainSlideData, valSlideData)
 
-    old_disc_patches = splitTrainSlideData.getNumberOfPatches()
+    old_disc_patches = trainSlideData.getNumberOfPatches()
     with tf.Session() as sess:
         ## create iterator
         if (netAcc is None):
-            create_iterator_patch = dataset.slidelist_to_patchlist(splitTrainSlideData.getSlideList())
+            create_iterator_patch = dataset.slidelist_to_patchlist(trainSlideData.getSlideList())
             create_iterator_dataset = dataset.img_dataset_augment(create_iterator_patch, batch_size=batch_size,
                                                                   shuffle_buffer_size=shuffle_buffer_size, shuffle=False,
-                                                                  getlabel=splitTrainSlideData.getLabelFunc(),
-                                                                  labelEncoder=splitTrainSlideData.getLabelEncoder(),
-                                                                  parseFunctionAugment=splitTrainSlideData.getparseFunctionAugment())
+                                                                  getlabel=trainSlideData.getLabelFunc(),
+                                                                  labelEncoder=trainSlideData.getLabelEncoder(),
+                                                                  parseFunctionAugment=trainSlideData.getparseFunctionAugment())
             create_iterator_iter = create_iterator_dataset.make_one_shot_iterator()
             proxy_iterator_handle_ph= tf.placeholder(tf.string, shape=[])
             proxy_iterator = tf.data.Iterator.from_string_handle(proxy_iterator_handle_ph, output_types=create_iterator_iter.output_types,
@@ -74,7 +76,7 @@ def emtrain(trainSlideData, valSlideData,
 
             ##
             H, disc_patches_new = \
-                find_discriminative_patches(splitTrainSlideData,
+                find_discriminative_patches(trainSlideData,
                                             netAcc,
                                             spatial_smoothing,
                                             sess,
@@ -83,7 +85,7 @@ def emtrain(trainSlideData, valSlideData,
 
             gc.collect()
 
-            train_accuracy, val_accuracy = train_on_discriminative_patches(splitTrainSlideData, valSlideData, netAcc, H, epochnum, 2, disc_patches_new,
+            train_accuracy, val_accuracy = train_on_discriminative_patches(trainSlideData, valSlideData, netAcc, H, epochnum, 2, disc_patches_new,
                                             dropout_ratio=dropout_ratio, learning_rate=learning_rate, sess=sess, do_augment=do_augment, runName=runName, logregSavePath=logreg_savepath)
 
             epochnum += 2
