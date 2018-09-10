@@ -14,7 +14,7 @@ def evaluateNet(netAccess: netutil.NetAccess, logRegModel, valSlideList: data_tf
 
     slideHistograms = []
     simpleAccuracies = []
-    iterator, iteratorInitOps = valSlideList.getIterator(netAccess)
+    iterator, iteratorInitOps = valSlideList.getIterator(netAccess, augment=False)
     for i in range(valSlideList.getNumberOfSlides()):
         iteratorLen = len(valSlideList.getSlideList()[i])
         sess.run(iteratorInitOps[i])
@@ -32,10 +32,13 @@ def evaluateNet(netAccess: netutil.NetAccess, logRegModel, valSlideList: data_tf
     maxAccuracy = accuracy_score(valSlideList.getSlideLabelList(), maxPredictions)
     # print(accuracy)
     maxConfusionMatrix = confusion_matrix(valSlideList.getSlideLabelList(), maxPredictions)
+    print("Max Confusion Matrix:\n %s" % maxConfusionMatrix)
+
 
     if (logRegModel is not None):
         logregAccuracy, logregConfusionMatrix = train_logreg.test_given_logreg(slideHistograms, valSlideList.getSlideLabelList(), logRegModel)
         util.writeScalarSummary(logregAccuracy, "logRegAccuracyVal", netAccess.getSummmaryWriter(runName, sess.graph), step=step)
+        print("LogReg Confusion Matrix:\n %s" % logregConfusionMatrix)
 
     # scalar, scalarName, summaryWriter, step
     util.writeScalarSummary(sum(simpleAccuracies)/valSlideList.getNumberOfSlides(), "simpleAccuracyVal", netAccess.getSummmaryWriter(runName, sess.graph),
