@@ -17,7 +17,7 @@ EPOCHNUMBER = 1
 
 def train_net(trainSlideData , valSlideData=None, getlabel_train=data_tf.getlabel_new, num_epochs=2, batch_size=64, do_augment=True,
               dropout_ratio=0.5, lr=0.0005, savepath=None, shuffle_buffer_size=2048, loadpath=None, model_name="modelname", sess=tf.Session(), log_savepath=None, runName="",
-              buildNet= netutil.build_model, valIsTestData=False):
+              buildNet= netutil.build_model, valIsTestData=False, initialEpoch=None):
     if not valIsTestData:
         trainSlideData, valSlideData = data_tf.splitSlideLists(trainSlideData, valSlideData)
 
@@ -68,7 +68,12 @@ def train_net(trainSlideData , valSlideData=None, getlabel_train=data_tf.getlabe
     else:
         saver.restore(sess, loadpath)
 
-    actualEpoch = 0
+    if initialEpoch is None:
+        actualEpoch = 0
+    else:
+        actualEpoch = initialEpoch
+
+
     for i in range(num_epochs):
         trainAccuracy, valAccuracy = train_given_net(netAcc,
                                                      len(train_patches),
@@ -110,6 +115,10 @@ def train_given_net(netAcc,
                     runName="",
                     log_savepath=None,
                     actualEpoch=None):
+    if actualEpoch is not None:
+        global EPOCHNUMBER
+        EPOCHNUMBER = actualEpoch
+
     train_iterator_handle = sess.run(train_iterator.string_handle())
 
     for epoch in range(num_epochs):
