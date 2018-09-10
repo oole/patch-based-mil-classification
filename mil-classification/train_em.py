@@ -48,8 +48,10 @@ def emtrain(trainSlideData, valSlideData,
         ## create iterator
         if (netAcc is None):
             create_iterator_patch = dataset.slidelist_to_patchlist(trainSlideData.getSlideList())
-            create_iterator_dataset = dataset.img_dataset_augment(create_iterator_patch, batch_size=batch_size,
-                                                                  shuffle_buffer_size=shuffle_buffer_size, shuffle=False,
+            create_iterator_dataset = dataset.img_dataset_augment(create_iterator_patch,
+                                                                  batch_size=batch_size,
+                                                                  shuffle_buffer_size=shuffle_buffer_size,
+                                                                  shuffle=True,
                                                                   getlabel=trainSlideData.getLabelFunc(),
                                                                   labelEncoder=trainSlideData.getLabelEncoder(),
                                                                   parseFunctionAugment=trainSlideData.getparseFunctionAugment())
@@ -320,8 +322,19 @@ def find_discriminative_patches(trainSlideData, netAccess, spatial_smoothing,
 
     return H, disc_patches #, train_predict_accuracy, train_max_accuracy, train_logreg_acccuracy
 
-def train_on_discriminative_patches(trainSlideData, valSlideData, netAccess, H, initial_epochnum, num_epochs, num_patches,
-                                    dropout_ratio, learning_rate, sess, do_augment=False, runName="", logregSavePath=None):
+def train_on_discriminative_patches(trainSlideData,
+                                    valSlideData,
+                                    netAccess,
+                                    H,
+                                    initial_epochnum,
+                                    num_epochs,
+                                    num_patches,
+                                    dropout_ratio,
+                                    learning_rate,
+                                    sess,
+                                    do_augment=False,
+                                    runName="",
+                                    logregSavePath=None):
 
     slideList = trainSlideData.getSlideList()
 
