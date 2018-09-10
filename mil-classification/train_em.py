@@ -55,13 +55,15 @@ def emtrain(trainSlideData, valSlideData,
                                                                   getlabel=trainSlideData.getLabelFunc(),
                                                                   labelEncoder=trainSlideData.getLabelEncoder(),
                                                                   parseFunctionAugment=trainSlideData.getparseFunctionAugment())
-            create_iterator_iter = create_iterator_dataset.make_one_shot_iterator()
-            proxy_iterator_handle_ph= tf.placeholder(tf.string, shape=[])
-            proxy_iterator = tf.data.Iterator.from_string_handle(proxy_iterator_handle_ph, output_types=create_iterator_iter.output_types,
-                                                                 output_shapes=create_iterator_iter.output_shapes)
+            create_iterator_iter = create_iterator_dataset.make_initializable_iterator()
+            # proxy_iterator_handle_ph= tf.placeholder(tf.string, shape=[])
+            # proxy_iterator = tf.data.Iterator.from_string_handle(proxy_iterator_handle_ph, output_types=create_iterator_iter.output_types,
+            #                                                      output_shapes=create_iterator_iter.output_shapes)
+            # x, y = proxy_iterator.get_next()
+            iterator_handle, iterator_access, proxy_iterator = dataset.proxy_iterator(sess, create_iterator_iter)
             x, y = proxy_iterator.get_next()
             netAcc = buildNet(model_name, x, y, use_bn_1=True, use_bn_2=True, use_dropout_1=True, use_dropout_2=True,  batchSize=batch_size)
-            netAcc.setIteratorHandle(proxy_iterator_handle_ph)
+            netAcc.setIteratorHandle(iterator_handle)
 
 
             # model saver
