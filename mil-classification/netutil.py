@@ -23,8 +23,12 @@ def batch_norm(x, is_training, name=None, trainable=True):
 def conv2d(x, w, stride=[1,1,1,1], padding="VALID"):
     return tf.nn.conv2d(x, filter=w, strides=stride, padding=padding)
 
-def maxpool(x, strideSize=2, kernelSize=2, padding='VALID'):
-    return tf.nn.max_pool(x, ksize=[1,kernelSize,kernelSize,1], strides=[1,strideSize,strideSize,1], padding=padding)
+def maxpool(x, strideSize=2, kernelSize=2, padding='VALID', name=None):
+    if name is not None:
+        return tf.nn.max_pool(x, name=name, ksize=[1, kernelSize, kernelSize, 1], strides=[1, strideSize, strideSize, 1],
+                              padding=padding)
+    else:
+        return tf.nn.max_pool(x, ksize=[1,kernelSize,kernelSize,1], strides=[1,strideSize,strideSize,1], padding=padding)
 
 
 def build_model(scope, x, y,
