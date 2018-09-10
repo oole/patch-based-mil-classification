@@ -375,7 +375,7 @@ class SlideData:
                         init_op = iterator.make_initializer(slideDataset)
                         iteratorOps.append(init_op)
                     self.slideIteratorNormal = iterator
-                    self.iteratorInitOpsAugment = iteratorOps
+                    self.iteratorInitOpsNormal = iteratorOps
                 else:
                     slideDataset = dataset.img_dataset(self.getSlideList()[0], batch_size=batchSize,
                                                        shuffle_buffer_size=None, shuffle=False,
