@@ -25,8 +25,10 @@ def train_net(trainSlideData , valSlideData=None, getlabel_train=data_tf.getlabe
     val_patches = dataset.slidelist_to_patchlist(valSlideData.getSlideList())
     np.random.shuffle(train_patches)
     if do_augment:
-        train_dataset = dataset.img_dataset_augment(train_patches, batch_size=batch_size,
-                                                    shuffle_buffer_size=shuffle_buffer_size, shuffle=True,
+        train_dataset = dataset.img_dataset_augment(train_patches,
+                                                    batch_size=batch_size,
+                                                    shuffle_buffer_size=shuffle_buffer_size,
+                                                    shuffle=True,
                                                     getlabel = trainSlideData.getLabelFunc(),
                                                     labelEncoder=trainSlideData.getLabelEncoder(),
                                                     parseFunctionAugment=trainSlideData.getparseFunctionAugment())
@@ -69,9 +71,17 @@ def train_net(trainSlideData , valSlideData=None, getlabel_train=data_tf.getlabe
     actualEpoch = 0
     for i in range(num_epochs):
         trainAccuracy, valAccuracy = train_given_net(netAcc,
-                        len(train_patches), train_iterator,
-                        val_iterator_len=len(val_patches), val_iterator=val_iterator,
-                        num_epochs=1, batch_size=batch_size, dropout_ratio=dropout_ratio, learning_rate=lr, sess=sess, runName=runName, log_savepath= log_savepath)
+                                                     len(train_patches),
+                                                     train_iterator,
+                                                     val_iterator_len=len(val_patches),
+                                                     val_iterator=val_iterator,
+                                                     num_epochs=1,
+                                                     batch_size=batch_size,
+                                                     dropout_ratio=dropout_ratio,
+                                                     learning_rate=lr,
+                                                     sess=sess,
+                                                     runName=runName,
+                                                     log_savepath= log_savepath)
 
         # Train logreg model with current net
         logregModel = train_logreg.train_logreg(netAcc, log_savepath, trainSlideData, dropout_ratio, sess)
@@ -88,9 +98,18 @@ def train_net(trainSlideData , valSlideData=None, getlabel_train=data_tf.getlabe
 
 
 def train_given_net(netAcc,
-                    train_iterator_len, train_iterator,
-                    val_iterator_len=None, val_iterator=None,
-                    num_epochs=2, batch_size=64, dropout_ratio=0.5, learning_rate=0.0005, sess=tf.Session(), runName="", log_savepath=None, actualEpoch=0):
+                    train_iterator_len,
+                    train_iterator,
+                    val_iterator_len=None,
+                    val_iterator=None,
+                    num_epochs=2,
+                    batch_size=64,
+                    dropout_ratio=0.5,
+                    learning_rate=0.0005,
+                    sess=tf.Session(),
+                    runName="",
+                    log_savepath=None,
+                    actualEpoch=None):
     train_iterator_handle = sess.run(train_iterator.string_handle())
 
     for epoch in range(num_epochs):
