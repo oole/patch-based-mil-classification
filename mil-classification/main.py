@@ -4,7 +4,7 @@ import numpy as np
 import train
 import train_em
 import util
-
+import os
 
 batch_size=64
 def train_augment():
@@ -140,18 +140,25 @@ SANITYCHECK=False
 def train_augment_csv(train_csv="/home/oole/Data/nice_data/train.csv", test_csv="/home/oole/Data/nice_data/test.csv"):
     val_csv = "/home/oole/Data/nice_data/400x400_data/train.csv"
 
-    simple_train_savepath = "/home/oole/tfnetsave/tfnet_em_full"
-    em_train_savepath = "/home/oole/tfnetsave/tfnet_em_full"
+    netRoot = "/home/oole/tfnetsave/"
+    runName = "180806_betterAugmentation_lr0.001/"
+
+    if not os.path.exists(netRoot + runName):
+        os.makedirs(netRoot + runName)
+    else:
+        print("Run folder already extists.")
+
+    simple_train_savepath = netRoot + runName + "tfnet_simple_full"
+    em_train_savepath = netRoot + runName + "tfnet_em_full"
 
     initial_epoch = 0
 
 
-    logfile_path = "/home/oole/tfnetsave/tfnet_log.csv"
-    logreg_savepath = "/home/oole/tfnetsave/tfnet_logreg"
+    logfile_path = netRoot + runName + "tfnet_log.csv"
+    logreg_savepath = netRoot + runName + "tfnet_logreg"
 
 
     model_name = "model"
-    runName = "run180712/"
 
     labelEncoder = data_tf.labelencoder()
 
@@ -164,10 +171,10 @@ def train_augment_csv(train_csv="/home/oole/Data/nice_data/train.csv", test_csv=
     #test purposes
     #trainSlideData, valSlideData = data_tf.getTestSizeData(trainSlideData, valSlideData, 20)
     # Initial training
-    train_accuracy, val_accuracy, netAcc = train.train_net(trainSlideData, valSlideData, num_epochs=2, batch_size=batch_size,
+    train_accuracy, val_accuracy, netAcc = train.train_net(trainSlideData, valSlideData, num_epochs=30, batch_size=batch_size,
                                                    savepath=simple_train_savepath, do_augment=True, model_name=model_name,
-                                                    getlabel_train=data_tf.getlabel_new, log_savepath=logfile_path, runName=runName)
-    initial_epoch +=2
+                                                    getlabel_train=data_tf.getlabel_new, log_savepath=logfile_path, runName=runName, lr=0.001)
+    # initial_epoch +=2
     # print("Simpletrain Done")
 
     # util.write_log_file(logfile_path, train_accuracy=train_accuracy, val_accuracy=val_accuracy)
@@ -176,13 +183,13 @@ def train_augment_csv(train_csv="/home/oole/Data/nice_data/train.csv", test_csv=
     # train.train_net(trainSlideData, valSlideData, num_epochs=2, batch_size=batch_size, savepath=simple_train_savepath,
     #                 loadpath=simple_train_savepath, do_augment=False, model_name="model")
 
-    train_em.emtrain(trainSlideData, valSlideData,
-                     simple_train_savepath, em_train_savepath, batch_size,
-                     initial_epochnum=initial_epoch,
-                     model_name=model_name,
-                     spatial_smoothing=SPATIALSMOOTHING,
-                     do_augment=DOAUGMENT,
-                     num_epochs=EPOCHS, dropout_ratio=DROPOUT, learning_rate=LR, sanity_check=SANITYCHECK,
-                     logfile_path=logfile_path, logreg_savepath=logreg_savepath, runName=runName, netAcc=netAcc)
+    # train_em.emtrain(trainSlideData, valSlideData,
+    #                  simple_train_savepath, em_train_savepath, batch_size,
+    #                  initial_epochnum=initial_epoch,
+    #                  model_name=model_name,
+    #                  spatial_smoothing=SPATIALSMOOTHING,
+    #                  do_augment=DOAUGMENT,
+    #                  num_epochs=EPOCHS, dropout_ratio=DROPOUT, learning_rate=LR, sanity_check=SANITYCHECK,
+    #                  logfile_path=logfile_path, logreg_savepath=logreg_savepath, runName=runName, netAcc=netAcc)
 
 train_augment_csv()

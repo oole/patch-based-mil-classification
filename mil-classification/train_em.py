@@ -78,7 +78,7 @@ def emtrain(trainSlideData, valSlideData,
 
         while epochnum <= num_epochs + initial_epochnum:
 
-            ##
+            #
             H, disc_patches_new = \
                 find_discriminative_patches(trainSlideData,
                                             netAcc,
@@ -86,6 +86,9 @@ def emtrain(trainSlideData, valSlideData,
                                             sess,
                                             dropout_ratio=dropout_ratio, sanity_check=sanity_check, do_augment=do_augment, logreg_model_savepath=logreg_savepath, epochnum=epochnum)
             print("Discriminative patches: " + repr(disc_patches_new) + ". Before: " +  repr(old_disc_patches))
+
+            # H = None
+            # disc_patches_new = trainSlideData.getNumberOfPatches()
 
             gc.collect()
 
@@ -141,7 +144,7 @@ def find_discriminative_patches(trainSlideData, netAccess, spatial_smoothing,
 
     number_of_correct_pred = 0
     train_histograms = []
-    predIterator, predIteratorInitOps = trainSlideData.getIterator(netAccess=netAccess)
+    predIterator, predIteratorInitOps = trainSlideData.getIterator(netAccess=netAccess, augment=False)
     for i in range(trainSlideData.getNumberOfSlides()):
         gc.collect()
         # This is where the spatial structure should be recovered
@@ -343,27 +346,45 @@ def train_on_discriminative_patches(trainSlideData,
     batchSize = netAccess.getBatchSize()
 
     train_patches = dataset.slidelist_to_patchlist(slideList, H=H)
-
+    # Important shuffle!!! (shuffle buffer may be too small to properly shuffle
+    np.random.shuffle(train_patches)
+    val_patches = dataset.slidelist_to_patchlist(valSlideData.getSlideList())
     if len(train_patches) != num_patches:
         raise Exception("H did not work correctly")
 
     if do_augment:
-        train_dataset = dataset.img_dataset_augment(train_patches, batch_size=batchSize,
-                                                    shuffle_buffer_size=shuffle_buffer_size, shuffle=True,
+        train_dataset = dataset.img_dataset_augment(train_patches,
+                                                    batch_size=batchSize,
+                                                    shuffle_buffer_size=shuffle_buffer_size,
+                                                    shuffle=True,
                                                     getlabel=trainSlideData.getLabelFunc(),
                                                     labelEncoder=trainSlideData.getLabelEncoder(),
                                                     parseFunctionAugment=trainSlideData.getparseFunctionAugment())
     else:
         train_dataset = dataset.img_dataset(train_patches, batch_size=batchSize,
-                                                    shuffle_buffer_size=shuffle_buffer_size, shuffle=True)
+                                            shuffle_buffer_size=shuffle_buffer_size, shuffle=True)
+
+    val_dataset = dataset.img_dataset(val_patches, batch_size=batchSize,
+                                      getlabel=valSlideData.getLabelFunc(),
+                                      labelEncoder=valSlideData.getLabelEncoder(),
+                                      parseFunction=valSlideData.getparseFunctionNormal())
+    val_iterator = val_dataset.make_initializable_iterator()
     train_iterator = train_dataset.make_initializable_iterator()
     actualEpoch = initial_epochnum
+    train_accuracy = train.train_given_net(netAccess,
+                                           len(train_patches),
+                                           train_iterator,
+                                           val_iterator_len=len(val_patches),
+                                           val_iterator=val_iterator,
+                                           num_epochs=1,
+                                           batch_size=batchSize,
+                                           dropout_ratio=dropout_ratio,
+                                           learning_rate=learning_rate,
+                                           sess=sess,
+                                           runName=runName,
+                                           actualEpoch=actualEpoch)
     for i in range(num_epochs):
 
-        train_accuracy = train.train_given_net(netAccess,
-                            num_patches, train_iterator,
-                            num_epochs=1, dropout_ratio=dropout_ratio, learning_rate=learning_rate, sess=sess,
-                              val_iterator=train_iterator, val_iterator_len=num_patches, runName=runName, actualEpoch=actualEpoch)
 
         # Train logreg model with current net
         logregModel = train_logreg.train_logreg(netAccess, logregSavePath, trainSlideData, dropout_ratio, sess)

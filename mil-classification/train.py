@@ -176,7 +176,7 @@ def train_given_net(netAcc,
         util.write_log_file(log_savepath, epochNum=epoch + 1, trainLoss= trainLoss,
                             trainAccuracy=trainAccuracy, valLoss=valLoss,
                             valAccuracy=valAccuracy)
-        actualEpoch += 1
+        EPOCHNUMBER += 1
 
     netAcc.getSummmaryWriter(runName, sess.graph).flush()
     return trainAccuracy, valAccuracy
