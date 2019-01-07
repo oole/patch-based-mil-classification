@@ -9,22 +9,25 @@ import numpy as np
 
 BATCH_SIZE = 256
 SPATIALSMOOTHING = False
-LEARNING_RATE = 0.005
+LEARNING_RATE = 0.001
 DROPOUT_RATIO = 0.5
 
 
+
+BASENAME = "vgg_lymph"
+RUNSTAMP = "190107_sanitycheck"
 '''
 This will compare the networks performance to the knime blogpost on lymphoma classification.
 
 Dataset must be pre split into training/testing
 '''
-def simple_training():
-    epochs=100
+def simple_training(numberOfEpochs = 2):
     initialEpoch = 0
+    epochs=numberOfEpochs
 
     netRoot = "/home/oole/lymphoma_net_vgg/"
-    runName = "vgg_lymphoma_simple_180906_2/"
-    modelName = "vgg_lymph_model"
+    runName = BASENAME + "_simple_" + RUNSTAMP +"/"
+    modelName = BASENAME + "_model"
 
     if not os.path.exists(netRoot):
         os.makedirs(netRoot)
@@ -35,10 +38,10 @@ def simple_training():
     else:
         print("Run folder already extists.")
 
-    simple_train_savepath = netRoot + runName + "vgg_lymph_simple"
-    em_train_savepath = netRoot + runName + "vgg_lympf_em"
-    logfile_path = netRoot + runName + "vgg_lymph_net_log.csv"
-    logreg_savepath = netRoot + runName + "vgg_lymph_logreg"
+    simple_train_savepath = netRoot + runName + BASENAME + "_simple"
+    em_train_savepath = netRoot + runName + BASENAME + "_em"
+    logfile_path = netRoot + runName + BASENAME + "_net_log.csv"
+    logreg_savepath = netRoot + runName + BASENAME + "_logreg"
 
 
     # load data
@@ -69,8 +72,8 @@ def continue_simple_training():
     initialEpoch = 100
 
     netRoot = "/home/oole/lymphoma_net_vgg/"
-    runName = "vgg_lymphoma_simple_180902_cont/"
-    modelName = "vgg_lymph_model"
+    runName = BASENAME + "_simple_" + RUNSTAMP + "_cont/"
+    modelName = BASENAME + "_model"
 
     if not os.path.exists(netRoot):
         os.makedirs(netRoot)
@@ -81,10 +84,10 @@ def continue_simple_training():
     else:
         print("Run folder already extists.")
 
-    old_simple_savepath = netRoot + "vgg_lymphoma_simple_180902/" + "vgg_lymph_simple"
+    old_simple_savepath = netRoot + runName + BASENAME + "_simple"
     simple_cont_savepath = netRoot + runName + modelName
-    logfile_path = netRoot + runName + "vgg_lymph_net_log_em.csv"
-    logreg_savepath = netRoot + runName + "vgg_lymph_logreg"
+    logfile_path = netRoot + runName + BASENAME + "_net_log_em.csv"
+    logreg_savepath = netRoot + runName + BASENAME + "_logreg"
 
     # load data
     # split into train val
@@ -113,11 +116,11 @@ This will compare the networks performance to the knime blogpost on lymphoma cla
 Dataset must be pre split into training/testing
 '''
 def em_training():
-    initialEpoch = 100
+    initialEpoch = 2
 
     netRoot = "/home/oole/lymphoma_net_vgg/"
-    modelName = "vgg_lymph_model"
-    runName = "vgg_lymphoma_em_180903_em/"
+    modelName = BASENAME + "_model"
+    runName = BASENAME + "_em_" + RUNSTAMP + "/"
 
     if not os.path.exists(netRoot):
         os.makedirs(netRoot)
@@ -128,10 +131,10 @@ def em_training():
     else:
         print("Run folder already extists.")
 
-    simple_train_loadpath = netRoot + "vgg_lymphoma_simple_180902/" + "vgg_lymph_simple"
-    em_train_savepath = netRoot + runName + "vgg_lympf_em"
-    logfile_path = netRoot + runName + "vgg_lymph_net_log_em.csv"
-    logreg_savepath = netRoot + runName + "vgg_lymph_logreg"
+    simple_train_loadpath = netRoot + BASENAME + "_simple_" + RUNSTAMP + "/" + BASENAME + "_simple"
+    em_train_savepath = netRoot + runName + BASENAME + "_em"
+    logfile_path = netRoot + runName + BASENAME + "_net_log_em.csv"
+    logreg_savepath = netRoot + runName + BASENAME + "_logreg"
 
 
     # load data
@@ -169,7 +172,7 @@ def continue_em_training():
     initialEpoch = 103
 
     netRoot = "/home/oole/lymphoma_net/"
-    runName = "lymphoma_em_180815_2_cont/"
+    runName = BASENAME + "_em_" + RUNSTAMP + "_cont/"
     modelName = "lymph_model"
 
     if not os.path.exists(netRoot):
@@ -181,10 +184,10 @@ def continue_em_training():
     else:
         print("Run folder already extists.")
 
-    old_em_savepath = netRoot + "lymphoma_em_180815_2/" + "lympf_em"
-    em_train_savepath = netRoot + runName + "lympf_em"
-    logfile_path = netRoot + runName + "lymph_net_log_em.csv"
-    logreg_savepath = netRoot + runName + "lymph_logreg"
+    old_em_savepath = netRoot + runName + BASENAME + "_em"
+    em_train_savepath = netRoot + runName + BASENAME + "_em"
+    logfile_path = netRoot + runName + BASENAME + "_net_log_em.csv"
+    logreg_savepath = netRoot + runName + BASENAME + "_logreg"
 
 
     # load data
@@ -210,7 +213,7 @@ def continue_em_training():
 
     print("Data collected.")
 
-simple_training()
+simple_training(50)
 
 # continue_simple_training()
 

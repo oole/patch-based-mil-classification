@@ -7,7 +7,7 @@ import netutil
 
 def predict_given_net(pred_iterator_handle, pred_iterator_len,
                       netAcc,
-                      batch_size=64, dropout_ratio=0.5, sess=tf.Session):
+                      batch_size=64, dropout_ratio=0.5, sess=tf.Session, discriminativePatchFinder=None):
 
     # sess.run(pred_iterator.initializer)
     print("Prediction:")
@@ -23,6 +23,8 @@ def predict_given_net(pred_iterator_handle, pred_iterator_len,
                                         feed_dict={netAcc.getKeepProb(): (1 - dropout_ratio),
                                                    netAcc.getIsTraining(): False,
                                                    netAcc.getIteratorHandle(): pred_iterator_handle})
+
+
             util.update_print(
                 "Prediction: batch %0.d / %0.d" %
                 (i, pred_iterator_len // batch_size + 1))
@@ -33,6 +35,11 @@ def predict_given_net(pred_iterator_handle, pred_iterator_len,
             print("End of prediction dataset.")
             break
         i += 1
+
+    if discriminativePatchFinder is not None:
+        if discriminativePatchFinder.useDuringPredict():
+            print("Filtering discriminative patches for prediction")
+            discriminativePatchFinder.filterDiscriminativePatches()
     return batch_pred_y_pred, batch_pred_y_pred_prob, batch_pred_y_argmax
 
 

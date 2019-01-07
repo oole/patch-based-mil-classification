@@ -10,7 +10,7 @@ import util
 
 from sklearn.metrics import accuracy_score, confusion_matrix
 
-def evaluateNet(netAccess: netutil.NetAccess, logRegModel, valSlideList: data_tf.SlideData, step, sess=tf.Session(), dropout=0.5, runName=""):
+def evaluateNet(netAccess: netutil.NetAccess, logRegModel, valSlideList: data_tf.SlideData, step, sess=tf.Session(), dropout=0.5, runName="", discriminativePatchFinder= None):
 
     slideHistograms = []
     simpleAccuracies = []
@@ -21,7 +21,8 @@ def evaluateNet(netAccess: netutil.NetAccess, logRegModel, valSlideList: data_tf
         iteratorHandle = sess.run(iterator.string_handle())
         slide_y_pred, slide_y_pred_prob, slide_y_pred_argmax = \
             predict.predict_given_net(iteratorHandle, iteratorLen,
-                                      netAccess, batch_size=netAccess.getBatchSize(), dropout_ratio=dropout, sess=sess)
+                                      netAccess, batch_size=netAccess.getBatchSize(), dropout_ratio=dropout, sess=sess,
+                                      discriminativePatchFinder=discriminativePatchFinder)
         simpleAccuracy = accuracy_score([valSlideList.getSlideLabelList()[i]] * iteratorLen, list(
             map(valSlideList.getLabelEncoder().inverse_transform, slide_y_pred_argmax)))
         simpleAccuracies.append(simpleAccuracy)

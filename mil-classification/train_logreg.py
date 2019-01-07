@@ -5,7 +5,7 @@ from sklearn.utils import shuffle
 from sklearn.metrics import accuracy_score, confusion_matrix
 import predict
 
-def train_logreg(netAccess, savepath, trainSlideData, dropout,  sess):
+def train_logreg(netAccess, savepath, trainSlideData, dropout,  sess, discriminativePatchFinder=None):
     slideHistograms = []
     iterator, iteratorInitOps = trainSlideData.getIterator(netAccess, augment=True)
     for i in range(trainSlideData.getNumberOfSlides()):
@@ -14,7 +14,8 @@ def train_logreg(netAccess, savepath, trainSlideData, dropout,  sess):
         slideIteratorHandle = sess.run(iterator.string_handle())
         slide_y_pred, slide_y_pred_prob, slide_y_pred_argmax = \
             predict.predict_given_net(slideIteratorHandle, slideIteratorLen,
-                                      netAccess, batch_size=netAccess.getBatchSize(), dropout_ratio=dropout, sess=sess)
+                                      netAccess, batch_size=netAccess.getBatchSize(), dropout_ratio=dropout, sess=sess,
+                                      discriminativePatchFinder=discriminativePatchFinder)
         histogram = predict.histogram_for_predictions(slide_y_pred_argmax)
         slideHistograms.append(histogram)
 
