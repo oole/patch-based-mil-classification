@@ -23,7 +23,7 @@ def evaluateNet(netAccess: netutil.NetAccess, logRegModel, valSlideList: data_tf
             predict.predict_given_net(iteratorHandle, iteratorLen,
                                       netAccess, batch_size=netAccess.getBatchSize(), dropout_ratio=dropout, sess=sess,
                                       discriminativePatchFinder=discriminativePatchFinder)
-        simpleAccuracy = accuracy_score([valSlideList.getSlideLabelList()[i]] * iteratorLen, list(
+        simpleAccuracy = accuracy_score([valSlideList.getSlideLabelList()[i]] * len(slide_y_pred_argmax), list(
             map(valSlideList.getLabelEncoder().inverse_transform, slide_y_pred_argmax)))
         simpleAccuracies.append(simpleAccuracy)
         histogram = predict.histogram_for_predictions(slide_y_pred_argmax)
