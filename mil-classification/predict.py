@@ -39,7 +39,13 @@ def predict_given_net(pred_iterator_handle, pred_iterator_len,
     if discriminativePatchFinder is not None:
         if discriminativePatchFinder.useDuringPredict():
             print("Filtering discriminative patches for prediction")
-            discriminativePatchFinder.filterDiscriminativePatches()
+            H, _ = discriminativePatchFinder.filterDiscriminativePatches(np.asarray(batch_pred_y_pred_prob), batch_pred_y_argmax)
+            for i in reversed(range(len(batch_pred_y_pred_prob))):
+                if H[i] == 0:
+                    del batch_pred_y_pred[i]
+                    del batch_pred_y_pred_prob[i]
+                    del batch_pred_y_argmax[i]
+
     return batch_pred_y_pred, batch_pred_y_pred_prob, batch_pred_y_argmax
 
 
