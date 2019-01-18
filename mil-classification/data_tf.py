@@ -258,6 +258,10 @@ class SlideData:
         self.labelEncoder = labelencoder
         self.parseFunctionAugment = parseFunctionAugment
         self.parseFunction = parseFunction
+        self.collectiveIterator = None
+        self.collectiveIteratorInitOp = None
+        self.collectiveIteratorAugment = None
+        self.collectiveIteratorInitOpAugment = None
 
     def getSlideList(self):
         return self.slideList
@@ -403,6 +407,99 @@ class SlideData:
 
         # Return existing iterator and initOps
         return returnIterator, returnIteratorInitOps
+
+    def getCollectiveIterator(self, netAccess=None, batchSize=None, augment=True):
+        if netAccess is not None and batchSize is not None:
+            print("Explicit batchSize will overwrite netAccess batchSize")
+        if netAccess is not None and batchSize is None:
+            batchSize = netAccess.getBatchSize()
+        if netAccess is None and batchSize is None:
+            raise ValueError("Either netAcess or batchSize must be given.")
+
+
+
+        returnIterator = None
+        returnIteratorInitOp = None
+        # Create if they do not exist yet
+
+        collectedPatches = dataset.slidelist_to_patchlist(self.getSlideList())
+
+        iteratorLength = len(collectedPatches)
+
+        if augment:
+            if (self.collectiveIteratorAugment is None or self.collectiveIteratorInitOpAugment is None):
+                print("INFO: Creating datasets and iterators.")
+                if self.doAugment:
+                    collectedPatchDataset = dataset.img_dataset_augment(collectedPatches, batch_size=batchSize,
+                                                               shuffle_buffer_size=None, shuffle=False,
+                                                               getlabel=self.getLabelFunc(),
+                                                               labelEncoder=self.labelEncoder,
+                                                               parseFunctionAugment=self.parseFunctionAugment)
+
+                    iterator = tf.data.Iterator.from_structure(collectedPatchDataset.output_types,
+                                                               collectedPatchDataset.output_shapes)
+
+                    iteratorOp = iterator.make_initializer(collectedPatchDataset)
+
+                    self.collectiveIteratorAugment = iterator
+                    self.collectiveIteratorInitOpAugment = iteratorOp
+                else:
+                    collectedPatchDataset = dataset.img_dataset(collectedPatches, batch_size=batchSize,
+                                                       shuffle_buffer_size=None, shuffle=False,
+                                                       getlabel=self.getLabelFunc(),
+                                                       labelEncoder=self.labelEncoder,
+                                                       parseFunction=self.parseFunction)
+
+                    iterator = tf.data.Iterator.from_structure(collectedPatchDataset.output_types,
+                                                               collectedPatchDataset.output_shapes)
+
+                    iteratorOp = iterator.make_initializer(collectedPatchDataset)
+
+                    self.collectiveIteratorAugment = iterator
+                    self.collectiveIteratorInitOpAugment = iteratorOp
+
+            returnIterator = self.collectiveIteratorAugment
+            returnIteratorInitOp = self.collectiveIteratorInitOpAugment
+
+        # self.collectiveIterator = None
+        # self.collectiveIteratorInitOp = None
+        else:
+            if (self.collectiveIterator is None or self.collectiveIteratorInitOp is None):
+                print("INFO: Creating datasets and iterators.")
+                if self.doAugment:
+                    collectedPatchDataset = dataset.img_dataset_augment(collectedPatches, batch_size=batchSize,
+                                                               shuffle_buffer_size=None, shuffle=False,
+                                                               getlabel=self.getLabelFunc(),
+                                                               labelEncoder=self.labelEncoder,
+                                                               parseFunctionAugment=self.parseFunction)
+
+                    iterator = tf.data.Iterator.from_structure(collectedPatchDataset.output_types,
+                                                               collectedPatchDataset.output_shapes)
+
+                    iteratorOp = iterator.make_initializer(collectedPatchDataset)
+
+                    self.collectiveIterator = iterator
+                    self.collectiveIteratorInitOp = iteratorOp
+                else:
+                    collectedPatchDataset = dataset.img_dataset(collectedPatches, batch_size=batchSize,
+                                                       shuffle_buffer_size=None, shuffle=False,
+                                                       getlabel=self.getLabelFunc(),
+                                                       labelEncoder=self.labelEncoder,
+                                                       parseFunction=self.parseFunction)
+
+                    iterator = tf.data.Iterator.from_structure(collectedPatchDataset.output_types,
+                                                               collectedPatchDataset.output_shapes)
+
+                    iteratorOp = iterator.make_initializer(collectedPatchDataset)
+
+                    self.collectiveIterator = iterator
+                    self.collectiveIteratorInitOp = iteratorOp
+
+            returnIterator = self.collectiveIterator
+            returnIteratorInitOp = self.collectiveIteratorInitOp
+
+        # Return existing iterator and initOps
+        return returnIterator, returnIteratorInitOp, iteratorLength
 
 def splitSlideLists(trainSlideData, valSlideData):
     hasDim = True
