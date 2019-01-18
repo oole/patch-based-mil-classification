@@ -9,13 +9,14 @@ import numpy as np
 
 BATCH_SIZE = 256
 SPATIALSMOOTHING = False
-LEARNING_RATE = 0.001
+LEARNING_RATE = 0.0001
 DROPOUT_RATIO = 0.5
 
 
 
 BASENAME = "vgg_lymph"
-RUNSTAMP = "190107_sanitycheck"
+RUNSTAMP = "190108_l-0.0001_drop-0.5_bs-256"
+
 '''
 This will compare the networks performance to the knime blogpost on lymphoma classification.
 
@@ -115,8 +116,7 @@ This will compare the networks performance to the knime blogpost on lymphoma cla
 
 Dataset must be pre split into training/testing
 '''
-def em_training():
-    initialEpoch = 2
+def em_training(initialEpoch = 2, epochNumber=198):
 
     netRoot = "/home/oole/lymphoma_net_vgg/"
     modelName = BASENAME + "_model"
@@ -152,7 +152,7 @@ def em_training():
                      model_name=modelName,
                      spatial_smoothing=SPATIALSMOOTHING,
                      do_augment=True,
-                     num_epochs=100, dropout_ratio=DROPOUT_RATIO, learning_rate=LEARNING_RATE, sanity_check=False,
+                     num_epochs=epochNumber, dropout_ratio=DROPOUT_RATIO, learning_rate=LEARNING_RATE, sanity_check=False,
                      logfile_path=logfile_path,
                      logreg_savepath=logreg_savepath,
                      runName=runName,
@@ -213,10 +213,10 @@ def continue_em_training():
 
     print("Data collected.")
 
-simple_training(50)
+#simple_training(2)
 
 # continue_simple_training()
 
-# em_training()
+em_training(initialEpoch = 2, epochNumber=198)
 
 # continue_em_training()
