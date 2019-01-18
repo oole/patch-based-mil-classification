@@ -64,6 +64,9 @@ def input_parser_imglabel_no_augment(img_path, img_label):
     img_standard = tf.image.per_image_standardization(img_cropped)
     return img_standard, one_hot
 
+'''
+Keeps the order of the patches
+'''
 def slidelist_to_patchlist(slidelist, H = None):
     patches = []
     for i in range(len(slidelist)):

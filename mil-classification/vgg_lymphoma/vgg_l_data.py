@@ -87,6 +87,7 @@ def l_image_augment(img_path, img_label):
     img_hue = tf.image.random_hue(img_brightness, 0.09)
     img_saturation = tf.image.random_saturation(img_hue, 0.7, 1.3)
     # End add more augmentation
+    # TODO Check bounding box that is being extracted
     img_crop = tf.image.crop_to_bounding_box(img_saturation, 0,0,64,64)
     img_standard = tf.image.per_image_standardization(img_crop)
     return img_standard, one_hot
