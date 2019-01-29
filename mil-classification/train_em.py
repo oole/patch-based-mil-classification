@@ -30,7 +30,9 @@ def emtrain(trainSlideData, valSlideData,
             netAcc=None,
             buildNet=netutil.build_model,
             valIsTestData=False,
-            discriminativePatchFinder = OriginalDiscFinder
+            discriminativePatchFinderTrain = OriginalDiscFinder,
+            discriminativePatchFinderPredict = OriginalDiscFinder,
+            splitSeed = None
             ):
 
     iteration = 0
@@ -39,7 +41,7 @@ def emtrain(trainSlideData, valSlideData,
     # get_per_class_instances(trainSlideData, label_encoder)
 
     if not valIsTestData:
-        trainSlideData, valSlideData = data_tf.splitSlideLists(trainSlideData, valSlideData)
+        trainSlideData, valSlideData = data_tf.splitSlideLists(trainSlideData, valSlideData, splitSeed)
 
     old_disc_patches = trainSlideData.getNumberOfPatches()
     with tf.Session() as sess:
@@ -74,18 +76,18 @@ def emtrain(trainSlideData, valSlideData,
 
         netAcc.getSummmaryWriter(runName, sess.graph)
 
-        discriminativePatchFinder = discriminativePatchFinder(trainSlideData,
-                                  netAcc,
-                                  spatial_smoothing,
-                                  sess,
-                                  dropout_ratio=dropout_ratio, sanity_check=sanity_check, do_augment=do_augment,
-                                  logreg_model_savepath=logreg_savepath,
-                                  epochnum=epochnum)
+        discriminativePatchFinderTrain = discriminativePatchFinderTrain(trainSlideData,
+                                                                        netAcc,
+                                                                        spatial_smoothing,
+                                                                        sess,
+                                                                        dropout_ratio=dropout_ratio, sanity_check=sanity_check, do_augment=do_augment,
+                                                                        logreg_model_savepath=logreg_savepath,
+                                                                        epochnum=epochnum)
 
         while epochnum <= num_epochs + initial_epochnum:
 
             # Do not need H here
-            H, disc_patches_new = discriminativePatchFinder.find_discriminative_patches()
+            H, disc_patches_new = discriminativePatchFinderTrain.find_discriminative_patches()
             print("Discriminative patches: " + repr(disc_patches_new) + ". Before: " +  repr(old_disc_patches))
 
             # H = None
@@ -106,7 +108,7 @@ def emtrain(trainSlideData, valSlideData,
                                                                            do_augment=do_augment,
                                                                            runName=runName,
                                                                            logregSavePath=logreg_savepath,
-                                                                           discriminativePatchFinder= discriminativePatchFinder)
+                                                                           discriminativePatchFinderPredict = discriminativePatchFinderPredict)
 
             epochnum += 2
             old_disc_patches = disc_patches_new
@@ -136,7 +138,7 @@ def train_on_discriminative_patches(trainSlideData,
                                     do_augment=False,
                                     runName="",
                                     logregSavePath=None,
-                                    discriminativePatchFinder=None):
+                                    discriminativePatchFinderPredict = None):
     slideList = trainSlideData.getSlideList()
     batchSize = netAccess.getBatchSize()
 
@@ -180,11 +182,11 @@ def train_on_discriminative_patches(trainSlideData,
                                            actualEpoch=actualEpoch)
 
     # Train logreg model with current net
-    logregModel = train_logreg.train_logreg(netAccess, logregSavePath, trainSlideData, dropout_ratio, sess, discriminativePatchFinder)
+    logregModel = train_logreg.train_logreg(netAccess, logregSavePath, trainSlideData, dropout_ratio, sess, discriminativePatchFinderPredict)
 
 
     evaluate.evaluateNet(netAccess, logregModel, valSlideData, actualEpoch, sess=sess, dropout=dropout_ratio,
-                         runName=runName, discriminativePatchFinder=discriminativePatchFinder)
+                         runName=runName, discriminativePatchFinder=discriminativePatchFinderPredict)
     actualEpoch +=1
 
     return train_accuracy
