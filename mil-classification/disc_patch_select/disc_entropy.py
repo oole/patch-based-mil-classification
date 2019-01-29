@@ -10,6 +10,12 @@ import predict
 from disc_patch_select.disc_original import OriginalDiscFinder
 
 class EctropyDiscFinder( OriginalDiscFinder ):
+    def __init__(self, thresholdPercentile):
+        if thresholdPercentile > 100 or thresholdPercentile < 0 :
+            raise ValueError("Invalid percentile, must be < 100 and >0")
+        self.thresholdPercentile = thresholdPercentile
+
+
 
     def find_discriminative_patches(self):
         # disc_patches = sum(np.count_nonzero(h) for h in self.H)
@@ -83,7 +89,7 @@ class EctropyDiscFinder( OriginalDiscFinder ):
             entropies.append(stats.entropy(perClassProbabilities[i]))
 
         # percentile H_perc -> 5%
-        H_perc = 90
+        H_perc = self.thresholdPercentile * 10
 
         T = np.percentile(entropies, H_perc)
         positiveInstances = 0
@@ -93,6 +99,7 @@ class EctropyDiscFinder( OriginalDiscFinder ):
                 positiveInstances += 1
             else:
                 H[i] = 0
+        print("Entropy: %s , Positive Instances %s/%s" % (str(self.thresholdPercentile), str(positiveInstances), str(numberOfInstances)))
 
         return H, positiveInstances
 
