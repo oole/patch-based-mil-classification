@@ -17,9 +17,10 @@ EPOCHNUMBER = 1
 
 def train_net(trainSlideData , valSlideData=None, getlabel_train=data_tf.getlabel_new, num_epochs=2, batch_size=64, do_augment=True,
               dropout_ratio=0.5, lr=0.0005, savepath=None, shuffle_buffer_size=2048, loadpath=None, model_name="modelname", sess=tf.Session(), log_savepath=None, runName="",
-              buildNet= netutil.build_model, valIsTestData=False, initialEpoch=None):
+              buildNet= netutil.build_model, valIsTestData=False, initialEpoch=None, splitSeed=None):
+
     if not valIsTestData:
-        trainSlideData, valSlideData = data_tf.splitSlideLists(trainSlideData, valSlideData)
+        trainSlideData, valSlideData = data_tf.splitSlideLists(trainSlideData, valSlideData, splitSeed=splitSeed)
 
     train_patches = dataset.slidelist_to_patchlist(trainSlideData.getSlideList())
     val_patches = dataset.slidelist_to_patchlist(valSlideData.getSlideList())
