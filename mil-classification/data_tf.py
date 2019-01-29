@@ -501,18 +501,18 @@ class SlideData:
         # Return existing iterator and initOps
         return returnIterator, returnIteratorInitOp, iteratorLength
 
-def splitSlideLists(trainSlideData, valSlideData):
+def splitSlideLists(trainSlideData, valSlideData, splitSeed=None):
     hasDim = True
     if trainSlideData.getSlideDimensionList() is None:
         hasDim = False
         splitResult = train_test_split(trainSlideData.getSlideList(), valSlideData.getSlideList(),
                                        trainSlideData.getSlideLabelList(), valSlideData.getSlideLabelList(),
-                                       stratify=trainSlideData.getSlideLabelList())
+                                       stratify=trainSlideData.getSlideLabelList(), random_state=splitSeed)
     else:
         splitResult = train_test_split(trainSlideData.getSlideList(), valSlideData.getSlideList(),
                                        trainSlideData.getSlideDimensionList(), valSlideData.getSlideDimensionList(),
                                        trainSlideData.getSlideLabelList(), valSlideData.getSlideLabelList(),
-                                       stratify=trainSlideData.getSlideLabelList())
+                                       stratify=trainSlideData.getSlideLabelList(), random_state=splitSeed)
 
     if hasDim:
         trainSlideList = splitResult[0]
