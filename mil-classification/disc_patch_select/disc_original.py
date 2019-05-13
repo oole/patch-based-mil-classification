@@ -9,10 +9,18 @@ import predict
 
 from disc_patch_select.disc_finder import AbstractDiscFinder
 
-class OriginalDiscFinder( AbstractDiscFinder ):
+"""
+Discriminative patch finder, based on per-patch class probabilities. 
 
-        # def __init__(self):
-        #     # nothing to do
+Following Le Hou et al. "Patch-based Convolutional Neural Network for Whole Slide Tissue Image Classification"
+
+"""
+
+
+class OriginalDiscFinder(AbstractDiscFinder):
+    """
+    Filters discriminative patches by applying a per image threshold on the true-class probability.
+    """
 
     def find_discriminative_patches(self):
         slideList = self.trainSlideData.getSlideList()
@@ -65,23 +73,23 @@ class OriginalDiscFinder( AbstractDiscFinder ):
 
             num_label = labelEncoder.transform(np.asarray(label))
 
-
             pred_iterator_len = len(patches)
-
-
 
             self.sess.run(predIteratorInitOps[i])
 
             pred_iterator_handle = self.sess.run(predIterator.string_handle())
 
-            slide_y_pred, slide_y_pred_prob, slide_y_pred_argmax = predict.predict_given_net(pred_iterator_handle, pred_iterator_len, self.netAccess,
-                                                                          batch_size=batchSize, dropout_ratio=self.dropout_ratio, sess=self.sess)
+            slide_y_pred, slide_y_pred_prob, slide_y_pred_argmax = predict.predict_given_net(pred_iterator_handle,
+                                                                                             pred_iterator_len,
+                                                                                             self.netAccess,
+                                                                                             batch_size=batchSize,
+                                                                                             dropout_ratio=self.dropout_ratio,
+                                                                                             sess=self.sess)
 
             pred_histogram = predict.histogram_for_predictions(slide_y_pred_argmax)
             train_histograms.append(pred_histogram)
             if len(slide_y_pred) != len(patches) or sum(pred_histogram) != len(patches):
                 Exception("Predictions not corresponding to number of patches!")
-
 
             number_of_correct_pred += pred_histogram[num_label]
 
@@ -93,14 +101,16 @@ class OriginalDiscFinder( AbstractDiscFinder ):
                 print("Label encoding:" + str(labelEncoder.classes_))
                 print(pred_histogram)
                 """ end of info"""
-            true_label_pred_values = np.asarray(slide_y_pred_prob)[:,0]
+            true_label_pred_values = np.asarray(slide_y_pred_prob)[:, 0]
 
             ## Spatial smoothing
             if (self.spatial_smoothing):
                 patch_coordinates = self.get_patch_coordinates(patches)
-                spatial_pred = self.get_spatial_predictions(self.trainSlideData.getSlideDimensionList()[i], patches, true_label_pred_values)
+                spatial_pred = self.get_spatial_predictions(self.trainSlideData.getSlideDimensionList()[i], patches,
+                                                            true_label_pred_values)
                 smooth_spatial_pred = self.gaussian_filter(spatial_pred, sigma=0.5)
-                smoothed_predictions = self.get_patch_predictions_from_probability_map(smooth_spatial_pred, patch_coordinates)
+                smoothed_predictions = self.get_patch_predictions_from_probability_map(smooth_spatial_pred,
+                                                                                       patch_coordinates)
                 S.append(smoothed_predictions)
             else:
                 S.append(true_label_pred_values)
@@ -132,35 +142,6 @@ class OriginalDiscFinder( AbstractDiscFinder ):
             else:
                 Exception("probabilities could not be attributed")
 
-        #train_predict_accuracy = number_of_correct_pred / trainSlideData.getNumberOfPatches()
-        #print("Number of correct predictions: %s, corresponds to %0.3f" % (
-        #str(number_of_correct_pred), train_predict_accuracy))
-        #if sanity_check:
-            #print("Evaluating on training set")
-            # at this point it would be cool to evaluate the whole train set, the accuracy and loss should correspond to the
-            # trainin accuracy
-            # total_eval = cnn_pred.evaluate_generator(data.patchgen_no_shuffle(train_slidelist, batch_size, label_encoder),
-            #                                          steps=train_total_number_of_patches // batch_size)
-            # print("Evaluation Accuracy: %s" % total_eval[1])
-
-        ### Testing MAX predict ###
-        #predictions = list(map(labelEncoder.inverse_transform, list(map(np.argmax, train_histograms))))
-        #train_max_accuracy = accuracy_score(slideLabelList, predictions)
-        # print(accuracy)
-        #confusion = confusion_matrix(slideLabelList, predictions)
-        #print("Max Accuracy: %0.5f" % train_max_accuracy)
-        #print("Max Confusion: \n%s" % str(confusion))
-
-        #logreg_model = train_logreg.train_logreg_from_histograms_and_labels(train_histograms, slideLabelList)
-        #train_logreg_acccuracy, train_logreg_confusion = train_logreg.test_given_logreg(train_histograms, slideLabelList, logreg_model)
-        #print("LogReg Accuracy: %0.5f" % train_logreg_acccuracy)
-        #print("LogReg Confusion: \n%s" % str(train_logreg_confusion))
-
-        #if logreg_model_savepath is not None:
-        #    train_logreg.save_logreg_model(logreg_model, logreg_model_savepath + "_" + str(epochnum) + ".model")
-
-
-        ### End Testing MAX predict ###
         overall_histo = [sum(np.asarray(train_histograms)[:, 0]),
                          sum(np.asarray(train_histograms)[:, 1]),
                          sum(np.asarray(train_histograms)[:, 2]),
@@ -169,11 +150,6 @@ class OriginalDiscFinder( AbstractDiscFinder ):
                          sum(np.asarray(train_histograms)[:, 5])]
 
         print("Overall histogram: %s" % overall_histo)
-
-        # """ Max Train """
-        # max_accuracy, max_confusion = predict.test_max_predict(train_histograms, label_encoder, slide_label_list)
-        #
-        # print("Max accuracy: %0.5d\n Max confusion: %s" % (max_accuracy, str(max_confusion)))
 
         # Remove non discriminative patches
         # E STEP1
@@ -228,34 +204,30 @@ class OriginalDiscFinder( AbstractDiscFinder ):
         disc_patches = sum(np.count_nonzero(h) for h in H)
 
         self.H = H
-        return H, disc_patches #, train_predict_accuracy, train_max_accuracy, train_logreg_acccuracy
-
+        return H, disc_patches
 
     def get_patch_predictions_from_probability_map(prob_map, coords):
         probabilities = []
-        for (x,y) in coords:
-            probabilities.append(prob_map[x,y])
+        for (x, y) in coords:
+            probabilities.append(prob_map[x, y])
         return probabilities
-
 
     def get_spatial_predictions(self, dim, patches, predictions):
         spatial_pred = np.zeros(dim)
         if (len(patches) == len(predictions)):
             for i in range(len(patches)):
-                (x,y) = self.get_coordinates(patches[i])
+                (x, y) = self.get_coordinates(patches[i])
                 spatial_pred[x][y] = predictions[i]
         else:
             raise Exception('spatial_pred could not be created')
         return spatial_pred
 
-
     def get_coordinates(self, patchpath):
         x_group = re.search('patch_x-[0-9]+', patchpath).group(0)
-        x = int(x_group[ re.search('x', x_group).start()+2 : ])
-        y_group =  re.search('patch_x-[0-9]+_y-[0-9]+', patchpath).group(0)
-        y = int(y_group[ re.search('y',y_group).start()+2 : ])
-        return (x,y)
-
+        x = int(x_group[re.search('x', x_group).start() + 2:])
+        y_group = re.search('patch_x-[0-9]+_y-[0-9]+', patchpath).group(0)
+        y = int(y_group[re.search('y', y_group).start() + 2:])
+        return (x, y)
 
     def get_patch_coordinates(self, patches):
         coordinates = []
