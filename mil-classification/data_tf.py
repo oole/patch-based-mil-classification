@@ -592,31 +592,31 @@ def KFoldSlideList(trainSlideData, valSlideData, numberOfSplits=5, splitSeed=133
             valDimList = None
         else:
             hasDim = True
-            trainDimList = [trainSlideData.getSlideDimensionList()[i] for i in idxs[train_idx]]
+            trainDimList = [np.asarray(trainSlideData.getSlideDimensionList()[i]) for i in idxs[train_idx]]
             valDimList = [valSlideData.getSlideDimensionList()[i] for i in idxs[test_idx]]
 
-        trainSlideList = [trainSlideData.getSlideList()[i] for i in idxs[train_idx]]
-        trainLabelList = [trainSlideData.getSlideLabelList()[i] for i in idxs[train_idx]]
+        trainSlideList = [np.asarray(trainSlideData.getSlideList()[i]) for i in idxs[train_idx]]
+        trainLabelList = [np.asarray(trainSlideData.getSlideLabelList()[i]) for i in idxs[train_idx]]
         newTrainSlideData = SlideData(trainSlideList,
                                       None,
-                                      np.asarray(trainSlideList).size,
+                                      np.sum(trainSlideList[i].size for i in range(len(trainSlideList))),
                                       trainLabelList,
                                       trainSlideData.getLabelFunc(),
                                       trainSlideData.getDoAugment(),
                                       labelencoder=trainSlideData.getLabelEncoder(),
                                       parseFunctionAugment=trainSlideData.getparseFunctionAugment(),
                                       parseFunction=trainSlideData.getparseFunctionNormal())
-        valSlideList = [valSlideData.getSlideList()[i] for i in idxs[test_idx]]
-        valLabelList = [valSlideData.getSlideLabelList()[i] for i in idxs[test_idx]]
+        valSlideList = [np.asarray(valSlideData.getSlideList()[i]) for i in idxs[test_idx]]
+        valLabelList = [np.asarray(valSlideData.getSlideLabelList()[i]) for i in idxs[test_idx]]
         newValSlideData = SlideData(trainSlideList,
                                       None,
-                                      np.asarray(valSlideList).size,
-                                      trainLabelList,
-                                      trainSlideData.getLabelFunc(),
-                                      trainSlideData.getDoAugment(),
-                                      labelencoder=trainSlideData.getLabelEncoder(),
-                                      parseFunctionAugment=trainSlideData.getparseFunctionAugment(),
-                                      parseFunction=trainSlideData.getparseFunctionNormal())
+                                      np.sum(valSlideList[i].size for i in range(len(valSlideList))),
+                                      valLabelList,
+                                      valSlideData.getLabelFunc(),
+                                      valSlideData.getDoAugment(),
+                                      labelencoder=valSlideData.getLabelEncoder(),
+                                      parseFunctionAugment=valSlideData.getparseFunctionAugment(),
+                                      parseFunction=valSlideData.getparseFunctionNormal())
         if hasDim:
             if (len(trainSlideList) != len(trainDimList) != len(trainLabelList)):
                 raise ValueError("Split is wrong")
