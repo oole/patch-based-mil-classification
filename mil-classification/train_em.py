@@ -32,8 +32,8 @@ def emtrain(trainSlideData, valSlideData,
             valIsTestData=False,
             discriminativePatchFinderTrain = OriginalDiscFinder,
             discriminativePatchFinderPredict = OriginalDiscFinder,
-            splitSeed = None
-            ):
+            splitSeed = None,
+            sess = tf.Session()):
 
     iteration = 0
 
@@ -44,85 +44,85 @@ def emtrain(trainSlideData, valSlideData,
         trainSlideData, valSlideData = data_tf.splitSlideLists(trainSlideData, valSlideData, splitSeed)
 
     old_disc_patches = trainSlideData.getNumberOfPatches()
-    with tf.Session() as sess:
-        ## create iterator
-        if (netAcc is None):
-            create_iterator_patch = dataset.slidelist_to_patchlist(trainSlideData.getSlideList())
-            create_iterator_dataset = dataset.img_dataset_augment(create_iterator_patch,
-                                                                  batch_size=batch_size,
-                                                                  shuffle_buffer_size=shuffle_buffer_size,
-                                                                  shuffle=True,
-                                                                  getlabel=trainSlideData.getLabelFunc(),
-                                                                  labelEncoder=trainSlideData.getLabelEncoder(),
-                                                                  parseFunctionAugment=trainSlideData.getparseFunctionAugment())
-            create_iterator_iter = create_iterator_dataset.make_initializable_iterator()
-            # proxy_iterator_handle_ph= tf.placeholder(tf.string, shape=[])
-            # proxy_iterator = tf.data.Iterator.from_string_handle(proxy_iterator_handle_ph, output_types=create_iterator_iter.output_types,
-            #                                                      output_shapes=create_iterator_iter.output_shapes)
-            # x, y = proxy_iterator.get_next()
-            iterator_handle, iterator_access, proxy_iterator = dataset.proxy_iterator(sess, create_iterator_iter)
-            x, y = proxy_iterator.get_next()
-            netAcc = buildNet(model_name, x, y, use_bn_1=True, use_bn_2=True, use_dropout_1=True, use_dropout_2=True,  batchSize=batch_size)
-            netAcc.setIteratorHandle(iterator_handle)
+    ## create iterator
+    if (netAcc is None):
+        create_iterator_patch = dataset.slidelist_to_patchlist(trainSlideData.getSlideList())
+        create_iterator_dataset = dataset.img_dataset_augment(create_iterator_patch,
+                                                              batch_size=batch_size,
+                                                              shuffle_buffer_size=shuffle_buffer_size,
+                                                              shuffle=True,
+                                                              getlabel=trainSlideData.getLabelFunc(),
+                                                              labelEncoder=trainSlideData.getLabelEncoder(),
+                                                              parseFunctionAugment=trainSlideData.getparseFunctionAugment())
+        create_iterator_iter = create_iterator_dataset.make_initializable_iterator()
+        # proxy_iterator_handle_ph= tf.placeholder(tf.string, shape=[])
+        # proxy_iterator = tf.data.Iterator.from_string_handle(proxy_iterator_handle_ph, output_types=create_iterator_iter.output_types,
+        #                                                      output_shapes=create_iterator_iter.output_shapes)
+        # x, y = proxy_iterator.get_next()
+        iterator_handle, iterator_access, proxy_iterator = dataset.proxy_iterator(sess, create_iterator_iter)
+        x, y = proxy_iterator.get_next()
+        netAcc = buildNet(model_name, x, y, use_bn_1=True, use_bn_2=True, use_dropout_1=True, use_dropout_2=True,  batchSize=batch_size)
+        netAcc.setIteratorHandle(iterator_handle)
 
 
-            # model saver
-            saver = tf.train.Saver()
-            ########################
-            # load model from disc
-            saver.restore(sess, loadpath)
+    # model saver
+    saver = tf.train.Saver()
+    if loadpath is not None:
+        ########################
+        # load model from disc
+        saver.restore(sess, loadpath)
 
 
 
-        netAcc.getSummmaryWriter(runName, sess.graph)
+    netAcc.getSummmaryWriter(runName, sess.graph)
 
-        discriminativePatchFinderTrain = discriminativePatchFinderTrain(trainSlideData,
-                                                                        netAcc,
-                                                                        spatial_smoothing,
-                                                                        sess,
-                                                                        dropout_ratio=dropout_ratio, sanity_check=sanity_check, do_augment=do_augment,
-                                                                        logreg_model_savepath=logreg_savepath,
-                                                                        epochnum=epochnum)
+    discriminativePatchFinderTrain = discriminativePatchFinderTrain(trainSlideData,
+                                                                    netAcc,
+                                                                    spatial_smoothing,
+                                                                    sess,
+                                                                    dropout_ratio=dropout_ratio, sanity_check=sanity_check, do_augment=do_augment,
+                                                                    logreg_model_savepath=logreg_savepath,
+                                                                    epochnum=epochnum)
 
-        while epochnum <= num_epochs + initial_epochnum:
+    while epochnum <= num_epochs + initial_epochnum:
 
-            # Do not need H here
-            H, disc_patches_new = discriminativePatchFinderTrain.find_discriminative_patches()
-            print("Discriminative patches: " + repr(disc_patches_new) + ". Before: " +  repr(old_disc_patches))
+        # Do not need H here
+        H, disc_patches_new = discriminativePatchFinderTrain.find_discriminative_patches()
+        print("Discriminative patches: " + repr(disc_patches_new) + ". Before: " +  repr(old_disc_patches))
 
-            # H = None
-            # disc_patches_new = trainSlideData.getNumberOfPatches()
+        # H = None
+        # disc_patches_new = trainSlideData.getNumberOfPatches()
 
-            gc.collect()
+        gc.collect()
 
-            train_accuracy, val_accuracy = train_on_discriminative_patches(trainSlideData,
-                                                                           valSlideData,
-                                                                           netAcc,
-                                                                           H,
-                                                                           epochnum,
-                                                                           2,
-                                                                           disc_patches_new,
-                                                                           dropout_ratio=dropout_ratio,
-                                                                           learning_rate=learning_rate,
-                                                                           sess=sess,
-                                                                           do_augment=do_augment,
-                                                                           runName=runName,
-                                                                           logregSavePath=logreg_savepath,
-                                                                           discriminativePatchFinderPredict = discriminativePatchFinderPredict)
+        train_accuracy, val_accuracy = train_on_discriminative_patches(trainSlideData,
+                                                                       valSlideData,
+                                                                       netAcc,
+                                                                       H,
+                                                                       epochnum,
+                                                                       2,
+                                                                       disc_patches_new,
+                                                                       dropout_ratio=dropout_ratio,
+                                                                       learning_rate=learning_rate,
+                                                                       sess=sess,
+                                                                       do_augment=do_augment,
+                                                                       runName=runName,
+                                                                       logregSavePath=logreg_savepath,
+                                                                       discriminativePatchFinderPredict = discriminativePatchFinderPredict)
 
-            epochnum += 2
-            old_disc_patches = disc_patches_new
-            iteration = iteration + 1
+        epochnum += 2
+        old_disc_patches = disc_patches_new
+        iteration = iteration + 1
 
-            util.write_log_file(logfile_path, epochNum=epochnum, trainPredictAccuracy="", trainMaxAccuracy="",
-                                trainLogRegAcccuracy="", trainAccuracy=train_accuracy,
-                                valAccuracy=val_accuracy)
-            if savepath is not None:
-                saver.save(sess, savepath)
+        util.write_log_file(logfile_path, epochNum=epochnum, trainPredictAccuracy="", trainMaxAccuracy="",
+                            trainLogRegAcccuracy="", trainAccuracy=train_accuracy,
+                            valAccuracy=val_accuracy)
+        if savepath is not None:
+            saver.save(sess, savepath)
 
-            # print("Iteration done (breaking)")
-            # # Since there is a memory leak problem at the moment the learning will not be looped
-            # break
+        # print("Iteration done (breaking)")
+        # # Since there is a memory leak problem at the moment the learning will not be looped
+        # break
 
 
 def train_on_discriminative_patches(trainSlideData,
@@ -173,7 +173,7 @@ def train_on_discriminative_patches(trainSlideData,
                                            train_iterator,
                                            val_iterator_len=len(val_patches),
                                            val_iterator=val_iterator,
-                                           num_epochs=1,
+                                           num_epochs=num_epochs,
                                            batch_size=batchSize,
                                            dropout_ratio=dropout_ratio,
                                            learning_rate=learning_rate,
@@ -187,7 +187,7 @@ def train_on_discriminative_patches(trainSlideData,
 
     evaluate.evaluateNet(netAccess, logregModel, valSlideData, actualEpoch, sess=sess, dropout=dropout_ratio,
                          runName=runName, discriminativePatchFinder=discriminativePatchFinderPredict)
-    actualEpoch +=1
+    actualEpoch +=num_epochs
 
     return train_accuracy
 

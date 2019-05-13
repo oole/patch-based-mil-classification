@@ -599,7 +599,7 @@ def KFoldSlideList(trainSlideData, valSlideData, numberOfSplits=5, splitSeed=133
         trainLabelList = [trainSlideData.getSlideLabelList()[i] for i in idxs[train_idx]]
         newTrainSlideData = SlideData(trainSlideList,
                                       None,
-                                      len(trainSlideList),
+                                      np.asarray(trainSlideList).size,
                                       trainLabelList,
                                       trainSlideData.getLabelFunc(),
                                       trainSlideData.getDoAugment(),
@@ -610,7 +610,7 @@ def KFoldSlideList(trainSlideData, valSlideData, numberOfSplits=5, splitSeed=133
         valLabelList = [valSlideData.getSlideLabelList()[i] for i in idxs[test_idx]]
         newValSlideData = SlideData(trainSlideList,
                                       None,
-                                      len(valSlideList),
+                                      np.asarray(valSlideList).size,
                                       trainLabelList,
                                       trainSlideData.getLabelFunc(),
                                       trainSlideData.getDoAugment(),

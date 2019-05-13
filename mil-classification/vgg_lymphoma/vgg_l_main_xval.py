@@ -21,34 +21,25 @@ TRAIN_DISC_FINDER = OriginalDiscFinder
 PRED_DISC_FINDER = EctropyDiscFinder(THRESHOLD_PERCENTILE)
 
 
-BASENAME = "vgg_lymph"
-SIMPLERUNSTAMP = "190123_l-0.0001_drop-0.5_bs-256"
-EMRUNSTAMP = SIMPLERUNSTAMP + "_entropy-" + str(THRESHOLD_PERCENTILE) + "-second"
+BASENAME = "vgg_lymph_xval"
+SIMPLERUNSTAMP = "190513_l-0.0001_drop-0.5_bs-256_entropy-" + str(THRESHOLD_PERCENTILE)
 
 '''
 Trains the two-layer model in one go, and performs cross-validation.
 '''
-def cross_val_training(numberOfEpochs = 2):
+def cross_val_training(numberOfEpochs = 10):
     initialEpoch = 0
-    epochs=numberOfEpochs
 
     netRoot = "/home/oole/lymphoma_net_vgg/"
-    runName = BASENAME + "_simple_" + SIMPLERUNSTAMP + "/"
     modelName = BASENAME + "_model"
 
     if not os.path.exists(netRoot):
         os.makedirs(netRoot)
     else:
         print("Net root folder already extists.")
-    if not os.path.exists(netRoot + runName):
-        os.makedirs(netRoot + runName)
-    else:
-        print("Run folder already extists.")
 
-    simple_train_savepath = netRoot + runName + BASENAME + "_simple"
-    em_train_savepath = netRoot + runName + BASENAME + "_em"
-    logfile_path = netRoot + runName + BASENAME + "_net_log.csv"
-    logreg_savepath = netRoot + runName + BASENAME + "_logreg"
+
+
 
 
     # load data
@@ -69,14 +60,25 @@ def cross_val_training(numberOfEpochs = 2):
         print("Fold number: " + str(1))
         # train slide data should consist of all available training data
         # is split into test and training
+        runName = BASENAME + "_simple_" + SIMPLERUNSTAMP + "_k-" + str(foldNum) + "-5" + "/"
 
-        # Reset weights for each iteration
-        sess.run(tf.global_variables_initializer())
+        if not os.path.exists(netRoot + runName):
+            os.makedirs(netRoot + runName)
+        else:
+            print("Run folder already extists.")
+
+        train_savepath = netRoot + runName + BASENAME + "_k-" + str(foldNum) + "-5"
+        logreg_savepath = netRoot + runName + BASENAME + "_logreg" + "_k-" + str(foldNum) + "-5"
+        logfile_path = netRoot + runName + BASENAME + "_k-" + str(foldNum) + "-5" + "_net_log_em.csv"
+
+        if netAcc is not None:
+            netAcc.getSummmaryWriter(runName, sess.graph, forceNew=True)
+
 
         _, _, netAcc = train.train_net(trainSlideData, testSlideData,
-                            num_epochs=epochs,
+                            num_epochs=2,
                             batch_size=BATCH_SIZE,
-                            savepath = simple_train_savepath,
+                            savepath = train_savepath,
                             do_augment = True,
                             model_name=modelName,
                             getlabel_train=ldata.getlabel,
@@ -91,21 +93,9 @@ def cross_val_training(numberOfEpochs = 2):
 
         print("Finished Simple Training")
 
-
-        netRoot = "/home/oole/lymphoma_net_vgg/"
-
-        runName = BASENAME + "_em_" + EMRUNSTAMP + "/"
-
-
-        em_train_savepath = netRoot + runName + BASENAME + "_em"
-        logfile_path = netRoot + runName + BASENAME + "_net_log_em.csv"
-        logreg_savepath = netRoot + runName + BASENAME + "_logreg"
-
-
-
         train_em.emtrain(trainSlideData, testSlideData,
-                         em_train_savepath, BATCH_SIZE,
-                         initial_epochnum=initialEpoch,
+                         None, train_savepath, BATCH_SIZE,
+                         initial_epochnum=initialEpoch+2,
                          model_name=modelName,
                          spatial_smoothing=SPATIALSMOOTHING,
                          do_augment=True,
@@ -117,8 +107,12 @@ def cross_val_training(numberOfEpochs = 2):
                          valIsTestData=True,
                          discriminativePatchFinderTrain=TRAIN_DISC_FINDER,
                          discriminativePatchFinderPredict=PRED_DISC_FINDER,
-                         splitSeed = SPLIT_SEED)
+                         splitSeed = SPLIT_SEED,
+                         sess= sess)
         foldNum += 1
+
+        # Reset weights for each iteration
+        sess.run(tf.global_variables_initializer())
 
 
 

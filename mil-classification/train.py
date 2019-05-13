@@ -56,7 +56,7 @@ def train_net(trainSlideData , valSlideData=None, getlabel_train=data_tf.getlabe
     if netAcc is None:
         netAcc = buildNet(
             model_name, x, y, use_bn_1=True, use_bn_2=True, use_dropout_1=True, use_dropout_2=True, batchSize=batch_size)
-    netAcc.setIteratorHandle(iterator_handle)
+        netAcc.setIteratorHandle(iterator_handle)
 
     # SAVER ###
     saver = tf.train.Saver()

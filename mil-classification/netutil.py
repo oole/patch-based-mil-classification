@@ -184,8 +184,8 @@ class NetAccess:
     def getShuffleBufferSize(self):
         return self.shuffleBufferSize
 
-    def getSummmaryWriter(self, run, graph):
-        if self.summaryWriter is None:
+    def getSummmaryWriter(self, run, graph, forceNew=False):
+        if self.summaryWriter is None or forceNew:
             print("NewSummaryWriter...")
             tf.summary.merge_all()
             self.summaryWriter = tf.summary.FileWriter("/home/oole/tboard/" + run, graph)
