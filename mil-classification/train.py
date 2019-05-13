@@ -13,7 +13,7 @@ import train_logreg
 
 TBOARDFOLDER="/home/oole/tboard/"
 
-EPOCHNUMBER = 1
+EPOCHNUMBER = 0
 
 def train_net(trainSlideData , valSlideData=None, getlabel_train=data_tf.getlabel_new, num_epochs=2, batch_size=64, do_augment=True,
               dropout_ratio=0.5, lr=0.0005, savepath=None, shuffle_buffer_size=2048, loadpath=None, model_name="modelname", sess=tf.Session(), log_savepath=None, runName="",
@@ -68,8 +68,12 @@ def train_net(trainSlideData , valSlideData=None, getlabel_train=data_tf.getlabe
 
     if initialEpoch is None:
         actualEpoch = 0
+        global EPOCHNUMBER
+        EPOCHNUMBER = actualEpoch
     else:
         actualEpoch = initialEpoch
+        global EPOCHNUMBER
+        EPOCHNUMBER = actualEpoch
 
 
     for i in range(num_epochs):
@@ -93,7 +97,7 @@ def train_net(trainSlideData , valSlideData=None, getlabel_train=data_tf.getlabe
                              runName=runName)
         actualEpoch += 1
         global EPOCHNUMBER
-        EPOCHNUMBER = actualEpoch+1
+        EPOCHNUMBER = actualEpoch
 
     if savepath is not None:
         saver.save(sess, savepath)
@@ -156,7 +160,7 @@ def train_given_net(netAcc,
                 break
         trainLoss = sum(np.asarray(batch_train_err)) / len(batch_train_err)
         trainAccuracy = sum(np.asarray(batch_train_acc)) / len(batch_train_acc)
-        util.writeEpochStatsToTensorBoard(trainLoss, trainAccuracy, netAcc.getSummmaryWriter(runName, sess.graph), step)
+        util.writeEpochStatsToTensorBoard(trainLoss, trainAccuracy, netAcc.getSummmaryWriter(runName, sess.graph), EPOCHNUMBER)
         print("Epoch %0.d - Training Summary -- Loss: %0.5f, Acc: %0.5f" %
               (EPOCHNUMBER, trainLoss, trainAccuracy))
         i = 1
