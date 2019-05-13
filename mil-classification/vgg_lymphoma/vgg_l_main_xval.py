@@ -86,7 +86,8 @@ def cross_val_training(numberOfEpochs=150):
                                        valIsTestData=True,
                                        splitSeed=SPLIT_SEED,
                                        sess=sess,
-                                       netAcc=netAcc)
+                                       netAcc=netAcc,
+                                       initialEpoch=initialEpoch)
 
         print("Finished Simple Training")
 
@@ -107,7 +108,7 @@ def cross_val_training(numberOfEpochs=150):
                          discriminativePatchFinderPredict=PRED_DISC_FINDER,
                          splitSeed=SPLIT_SEED,
                          sess=sess)
-        foldNum += 1
+        foldNum = foldNum + 1
 
         # Reset weights for each iteration
         sess.run(tf.global_variables_initializer())
