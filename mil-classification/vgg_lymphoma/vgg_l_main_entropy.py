@@ -8,7 +8,7 @@ import numpy as np
 
 from notification.tgm import  tgClient
 
-from disc_patch_select.disc_entropy import EctropyDiscFinder
+from patch_selection.disc_entropy import EctropyDiscFinder
 from disc_patch_select.disc_original import OriginalDiscFinder
 
 

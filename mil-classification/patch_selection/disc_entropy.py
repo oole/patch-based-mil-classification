@@ -9,13 +9,20 @@ import predict
 
 from disc_patch_select.disc_original import OriginalDiscFinder
 
-class EctropyDiscFinder( OriginalDiscFinder ):
+"""
+Filters discriminative patches during patch classification aggregation based on the per-class probability entropy.
+"""
+
+
+class EctropyDiscFinder(OriginalDiscFinder):
+    """
+    Initialize with the given threshold percentile, that is applied to the per-class probability entropy.
+    """
+
     def __init__(self, thresholdPercentile):
-        if thresholdPercentile > 100 or thresholdPercentile < 0 :
+        if thresholdPercentile > 100 or thresholdPercentile < 0:
             raise ValueError("Invalid percentile, must be < 100 and >0")
         self.thresholdPercentile = thresholdPercentile
-
-
 
     def find_discriminative_patches(self):
         # disc_patches = sum(np.count_nonzero(h) for h in self.H)
@@ -24,13 +31,11 @@ class EctropyDiscFinder( OriginalDiscFinder ):
 
         split_collected_y_pred_prob, split_collected_y_pred_argmax = self.collectProbabilities()
 
-
         totalNumberOfPatches = 0
         for i in range(split_collected_y_pred_argmax.shape[0]):
-
             self.H[i], numberOfPatches = self.filterDiscriminativePatches(split_collected_y_pred_prob[i],
-                                             split_collected_y_pred_argmax[i],
-                                             numericLabels[i])
+                                                                          split_collected_y_pred_argmax[i],
+                                                                          numericLabels[i])
             totalNumberOfPatches += numberOfPatches
 
         return self.H, totalNumberOfPatches  # , train_predict_accuracy, train_max_accuracy, train_logreg_acccuracy
@@ -38,6 +43,7 @@ class EctropyDiscFinder( OriginalDiscFinder ):
     '''
     Collects the probabilities for the given slides
     '''
+
     def collectProbabilities(self):
         # get information for data
         slideList = self.trainSlideData.getSlideList()
@@ -75,11 +81,11 @@ class EctropyDiscFinder( OriginalDiscFinder ):
         # Default: False
         return True
 
-
-    '''
+    """
     Filters the given probabilities for patches according to the true class and and the per class probabilites
     Return the Hidden Variable matrix.
-    '''
+    """
+
     def filterDiscriminativePatches(self, perClassProbabilities, predictedArgmax, trueClassIndex=None):
         numberOfInstances = perClassProbabilities.shape[0]
         H = np.ones(numberOfInstances)
@@ -99,7 +105,7 @@ class EctropyDiscFinder( OriginalDiscFinder ):
                 positiveInstances += 1
             else:
                 H[i] = 0
-        print("Entropy: %s , Positive Instances %s/%s" % (str(self.thresholdPercentile), str(positiveInstances), str(numberOfInstances)))
+        print("Entropy: %s , Positive Instances %s/%s" % (
+        str(self.thresholdPercentile), str(positiveInstances), str(numberOfInstances)))
 
         return H, positiveInstances
-
