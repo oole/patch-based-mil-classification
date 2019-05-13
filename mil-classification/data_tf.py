@@ -4,13 +4,15 @@ import os
 import numpy as np
 import pickle
 import re
-from sklearn.model_selection import train_test_split
+from sklearn.model_selection import train_test_split, KFold
 import tensorflow as tf
 import dataset
 
 """
 Check patch name for classname and return it
 """
+
+
 def getlabel(patch):
     label = ""
     if "OA" in patch:
@@ -27,9 +29,12 @@ def getlabel(patch):
         label = "GBM"
     return label
 
+
 """
 Check patch name for classname and return it
 """
+
+
 def getlabel_new(patch):
     label = ""
     if "class-OA" in patch:
@@ -48,18 +53,24 @@ def getlabel_new(patch):
         raise ValueError("label could not be found")
     return label
 
+
 """
 Returns the labelencoder for LGG, GBM
 """
+
+
 def labelencoder():
     lE = LabelEncoder()
     lE.fit(["OA", "DA", "AA", "OD", "AO", "GBM"])
     return lE
 
+
 """
 Load patches from given directory
 /dir/patient/patchxy.jpg
 """
+
+
 def loadpatches(datapath):
     patients = os.listdir(datapath)
 
@@ -91,10 +102,13 @@ def loadpatches(datapath):
         patches.extend(slide)
     return patches
 
+
 """
 Load patches from given directory
 /dir/patient/patchxy.jpg
 """
+
+
 def load_patch_folder(datapath):
     patches = os.listdir(datapath)
 
@@ -103,9 +117,12 @@ def load_patch_folder(datapath):
 
     return ok_patch
 
+
 """
 Reads slide locations and their respecitve labels from a csv file
 """
+
+
 def loaddata(dataPath):
     data = csv.reader(open(dataPath))
     slides, labels = [], []
@@ -114,12 +131,14 @@ def loaddata(dataPath):
         slides.append(row[1])
     return slides, labels
 
+
 def split_patches(patches):
-    twenty_perc = len(patches)//5
+    twenty_perc = len(patches) // 5
 
     x_val = patches[-twenty_perc:]
     x_train = patches[:-twenty_perc]
     return x_train, x_val
+
 
 def write_histograms_and_labels_to_file(histograms, labels, filepath):
     histopath = filepath + '/histograms.csv'
@@ -130,6 +149,7 @@ def write_histograms_and_labels_to_file(histograms, labels, filepath):
 
     with open(labelpath, 'wb') as f:
         pickle.dump(labels, f)
+
 
 def read_histograms_and_labels_from_file(filepath):
     histopath = filepath + '/histograms.csv'
@@ -143,13 +163,14 @@ def read_histograms_and_labels_from_file(filepath):
 
     return histograms, labels
 
+
 # def imread(path):
 #     img = cv2.imread(path)
 #     return img
 
 def float_and_norm(img):
     modimg = img.astype('float32')
-    modimg = modimg/255
+    modimg = modimg / 255
     return modimg
 
 
@@ -185,7 +206,7 @@ def collect_data(datapath, batch_size, filter_batch_size=True):
                 slide_info = open(slidepath + "/info.txt").read().split("\n")
                 slide_dimensions.append((int(slide_info[0][4:]), int(slide_info[1][4:])))
             except:
-                #ignore
+                # ignore
                 print("no txt")
             slidelist.append(patch_paths)
             patchnumber = patchnumber + len(patch_paths)
@@ -213,6 +234,7 @@ def loaddata_csv(dataPath, slide_index=0, class_index=1):
         dimensions.append((int(slide_info[0][4:]), int(slide_info[1][4:])))
     return slidepaths, labels, dimensions
 
+
 def collect_flat_data(datapath):
     patch_paths = []
     patches = os.listdir(datapath)
@@ -221,6 +243,7 @@ def collect_flat_data(datapath):
             patch_paths.append(datapath + "/" + patch)
     # at this point we have a list of lists containing the patches
     return patch_paths
+
 
 def collect_data_csv(train_csv, getLabel, doAugment=True):
     slidepaths, labels, dimensions = loaddata_csv(train_csv)
@@ -238,14 +261,14 @@ def collect_data_csv(train_csv, getLabel, doAugment=True):
         number_of_patches += len(patchlist)
         slidelist.append(patchlist)
 
-
     return SlideData(slidelist, dimensions, number_of_patches, labels, getLabel, doAugment)
 
 
 class SlideData:
     def __init__(self, slideList, slideDimensionList, numberOfPatches, slideLabelList, getLabel, doAugment,
-                 labelencoder=labelencoder(), parseFunctionAugment=dataset.input_parser_imglabel_augment, parseFunction=dataset.input_parser_imglabel_no_augment):
-        self.slideList= slideList
+                 labelencoder=labelencoder(), parseFunctionAugment=dataset.input_parser_imglabel_augment,
+                 parseFunction=dataset.input_parser_imglabel_no_augment):
+        self.slideList = slideList
         self.slideDimensionList = slideDimensionList
         self.numberOfPatches = numberOfPatches
         self.slideLabelList = slideLabelList
@@ -416,8 +439,6 @@ class SlideData:
         if netAccess is None and batchSize is None:
             raise ValueError("Either netAcess or batchSize must be given.")
 
-
-
         returnIterator = None
         returnIteratorInitOp = None
         # Create if they do not exist yet
@@ -431,10 +452,10 @@ class SlideData:
                 print("INFO: Creating datasets and iterators.")
                 if self.doAugment:
                     collectedPatchDataset = dataset.img_dataset_augment(collectedPatches, batch_size=batchSize,
-                                                               shuffle_buffer_size=None, shuffle=False,
-                                                               getlabel=self.getLabelFunc(),
-                                                               labelEncoder=self.labelEncoder,
-                                                               parseFunctionAugment=self.parseFunctionAugment)
+                                                                        shuffle_buffer_size=None, shuffle=False,
+                                                                        getlabel=self.getLabelFunc(),
+                                                                        labelEncoder=self.labelEncoder,
+                                                                        parseFunctionAugment=self.parseFunctionAugment)
 
                     iterator = tf.data.Iterator.from_structure(collectedPatchDataset.output_types,
                                                                collectedPatchDataset.output_shapes)
@@ -445,10 +466,10 @@ class SlideData:
                     self.collectiveIteratorInitOpAugment = iteratorOp
                 else:
                     collectedPatchDataset = dataset.img_dataset(collectedPatches, batch_size=batchSize,
-                                                       shuffle_buffer_size=None, shuffle=False,
-                                                       getlabel=self.getLabelFunc(),
-                                                       labelEncoder=self.labelEncoder,
-                                                       parseFunction=self.parseFunction)
+                                                                shuffle_buffer_size=None, shuffle=False,
+                                                                getlabel=self.getLabelFunc(),
+                                                                labelEncoder=self.labelEncoder,
+                                                                parseFunction=self.parseFunction)
 
                     iterator = tf.data.Iterator.from_structure(collectedPatchDataset.output_types,
                                                                collectedPatchDataset.output_shapes)
@@ -468,10 +489,10 @@ class SlideData:
                 print("INFO: Creating datasets and iterators.")
                 if self.doAugment:
                     collectedPatchDataset = dataset.img_dataset_augment(collectedPatches, batch_size=batchSize,
-                                                               shuffle_buffer_size=None, shuffle=False,
-                                                               getlabel=self.getLabelFunc(),
-                                                               labelEncoder=self.labelEncoder,
-                                                               parseFunctionAugment=self.parseFunction)
+                                                                        shuffle_buffer_size=None, shuffle=False,
+                                                                        getlabel=self.getLabelFunc(),
+                                                                        labelEncoder=self.labelEncoder,
+                                                                        parseFunctionAugment=self.parseFunction)
 
                     iterator = tf.data.Iterator.from_structure(collectedPatchDataset.output_types,
                                                                collectedPatchDataset.output_shapes)
@@ -482,10 +503,10 @@ class SlideData:
                     self.collectiveIteratorInitOp = iteratorOp
                 else:
                     collectedPatchDataset = dataset.img_dataset(collectedPatches, batch_size=batchSize,
-                                                       shuffle_buffer_size=None, shuffle=False,
-                                                       getlabel=self.getLabelFunc(),
-                                                       labelEncoder=self.labelEncoder,
-                                                       parseFunction=self.parseFunction)
+                                                                shuffle_buffer_size=None, shuffle=False,
+                                                                getlabel=self.getLabelFunc(),
+                                                                labelEncoder=self.labelEncoder,
+                                                                parseFunction=self.parseFunction)
 
                     iterator = tf.data.Iterator.from_structure(collectedPatchDataset.output_types,
                                                                collectedPatchDataset.output_shapes)
@@ -500,6 +521,7 @@ class SlideData:
 
         # Return existing iterator and initOps
         return returnIterator, returnIteratorInitOp, iteratorLength
+
 
 def splitSlideLists(trainSlideData, valSlideData, splitSeed=None):
     hasDim = True
@@ -541,7 +563,6 @@ def splitSlideLists(trainSlideData, valSlideData, splitSeed=None):
         trainDimList = None
         valDimList = None
 
-
     newTrainSlideData = SlideData(trainSlideList, trainDimList, np.asarray(trainSlideList).size, trainLabelList,
                                   trainSlideData.getLabelFunc(),
                                   trainSlideData.getDoAugment(),
@@ -557,16 +578,76 @@ def splitSlideLists(trainSlideData, valSlideData, splitSeed=None):
 
     return newTrainSlideData, newValSlideData
 
+
+def KFoldSlideList(trainSlideData, valSlideData, numberOfSplits=5, splitSeed=1337, shuffleSeed=10):
+    kf = KFold(n_splits=numberOfSplits, random_state=splitSeed)
+
+    np.random.seed(shuffleSeed)
+    idxs = np.arange(len(trainSlideData.getSlideList()))
+    np.random.shuffle(idxs)
+    for train_idx, test_idx in kf.split(idxs):
+        if trainSlideData.getSlideDimensionList() is None:
+            hasDim = False
+            trainDimList = None
+            valDimList = None
+        else:
+            hasDim = True
+            trainDimList = [trainSlideData.getSlideDimensionList()[i] for i in idxs[train_idx]]
+            valDimList = [valSlideData.getSlideDimensionList()[i] for i in idxs[test_idx]]
+
+        trainSlideList = [trainSlideData.getSlideList()[i] for i in idxs[train_idx]]
+        trainLabelList = [trainSlideData.getSlideLabelList()[i] for i in idxs[train_idx]]
+        newTrainSlideData = SlideData(trainSlideList,
+                                      None,
+                                      len(trainSlideList),
+                                      trainLabelList,
+                                      trainSlideData.getLabelFunc(),
+                                      trainSlideData.getDoAugment(),
+                                      labelencoder=trainSlideData.getLabelEncoder(),
+                                      parseFunctionAugment=trainSlideData.getparseFunctionAugment(),
+                                      parseFunction=trainSlideData.getparseFunctionNormal())
+        valSlideList = [valSlideData.getSlideList()[i] for i in idxs[test_idx]]
+        valLabelList = [valSlideData.getSlideLabelList()[i] for i in idxs[test_idx]]
+        newValSlideData = SlideData(trainSlideList,
+                                      None,
+                                      len(valSlideList),
+                                      trainLabelList,
+                                      trainSlideData.getLabelFunc(),
+                                      trainSlideData.getDoAugment(),
+                                      labelencoder=trainSlideData.getLabelEncoder(),
+                                      parseFunctionAugment=trainSlideData.getparseFunctionAugment(),
+                                      parseFunction=trainSlideData.getparseFunctionNormal())
+        if hasDim:
+            if (len(trainSlideList) != len(trainDimList) != len(trainLabelList)):
+                raise ValueError("Split is wrong")
+            if (len(valSlideList) != len(valDimList) != len(valLabelList)):
+                raise ValueError("Split is wrong")
+        else:
+            if (len(trainSlideList) != len(trainLabelList)):
+                raise ValueError("Split is wrong")
+            if (len(valSlideList) != len(valLabelList)):
+                raise ValueError("Split is wrong")
+        yield newTrainSlideData, newValSlideData
+
+
+
+
+
+
 # returns 10
 def getTestSizeData(trainSlideData, valSlideData, size):
-    newTrainSlideData = SlideData(getSubList(trainSlideData.getSlideList(), size), getSubList(trainSlideData.getSlideDimensionList(), size),
-                                  size, getSubList(trainSlideData.getSlideLabelList(),size), trainSlideData.getLabelFunc(), trainSlideData.getDoAugment())
-    newValSlideData = SlideData(getSubList(valSlideData.getSlideList(), size), getSubList(valSlideData.getSlideDimensionList(), size),
-                                  size, getSubList(valSlideData.getSlideLabelList(),size), valSlideData.getLabelFunc(), valSlideData.getDoAugment())
+    newTrainSlideData = SlideData(getSubList(trainSlideData.getSlideList(), size),
+                                  getSubList(trainSlideData.getSlideDimensionList(), size),
+                                  size, getSubList(trainSlideData.getSlideLabelList(), size),
+                                  trainSlideData.getLabelFunc(), trainSlideData.getDoAugment())
+    newValSlideData = SlideData(getSubList(valSlideData.getSlideList(), size),
+                                getSubList(valSlideData.getSlideDimensionList(), size),
+                                size, getSubList(valSlideData.getSlideLabelList(), size), valSlideData.getLabelFunc(),
+                                valSlideData.getDoAugment())
     newTrainSlideData.setLabelEncoder(trainSlideData.getLabelEncoder())
     newValSlideData.setLabelEncoder(valSlideData.getLabelEncoder())
     return newTrainSlideData, newValSlideData
 
+
 def getSubList(list, size):
     return list[:size]
-

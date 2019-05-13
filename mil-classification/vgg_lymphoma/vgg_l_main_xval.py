@@ -1,0 +1,126 @@
+import vgg_lymphoma.vgg_l_data as ldata
+import vgg_lymphoma.vgg_l_net as lnet
+import os
+import train
+import train_em
+import tensorflow as tf
+import data_tf
+
+from patch_selection.disc_entropy import EctropyDiscFinder
+from disc_patch_select.disc_original import OriginalDiscFinder
+
+
+SPLIT_SEED = 1337
+
+BATCH_SIZE = 256
+SPATIALSMOOTHING = False
+LEARNING_RATE = 0.0001
+DROPOUT_RATIO = 0.5
+THRESHOLD_PERCENTILE = 0.8
+TRAIN_DISC_FINDER = OriginalDiscFinder
+PRED_DISC_FINDER = EctropyDiscFinder(THRESHOLD_PERCENTILE)
+
+
+BASENAME = "vgg_lymph"
+SIMPLERUNSTAMP = "190123_l-0.0001_drop-0.5_bs-256"
+EMRUNSTAMP = SIMPLERUNSTAMP + "_entropy-" + str(THRESHOLD_PERCENTILE) + "-second"
+
+'''
+Trains the two-layer model in one go, and performs cross-validation.
+'''
+def cross_val_training(numberOfEpochs = 2):
+    initialEpoch = 0
+    epochs=numberOfEpochs
+
+    netRoot = "/home/oole/lymphoma_net_vgg/"
+    runName = BASENAME + "_simple_" + SIMPLERUNSTAMP + "/"
+    modelName = BASENAME + "_model"
+
+    if not os.path.exists(netRoot):
+        os.makedirs(netRoot)
+    else:
+        print("Net root folder already extists.")
+    if not os.path.exists(netRoot + runName):
+        os.makedirs(netRoot + runName)
+    else:
+        print("Run folder already extists.")
+
+    simple_train_savepath = netRoot + runName + BASENAME + "_simple"
+    em_train_savepath = netRoot + runName + BASENAME + "_em"
+    logfile_path = netRoot + runName + BASENAME + "_net_log.csv"
+    logreg_savepath = netRoot + runName + BASENAME + "_logreg"
+
+
+    # load data
+    # split into train val
+    basePath = "/home/oole/data_lymphoma_slim/"
+    trainDataPath = basePath + "train/"
+    # testDataPath = basePath + "test/"
+    trainSlideData = ldata.collect_data(trainDataPath)
+    testSlideData = trainSlideData
+
+    sess = tf.Session()
+
+    netAcc = None
+
+    foldNum = 1
+
+    for trainSlideData, testSLideData in data_tf.KFoldSlideList(trainSlideData, testSlideData, numberOfSplits=5, splitSeed=1337):
+        print("Fold number: " + str(1))
+        # train slide data should consist of all available training data
+        # is split into test and training
+
+        # Reset weights for each iteration
+        sess.run(tf.global_variables_initializer())
+
+        _, _, netAcc = train.train_net(trainSlideData, testSlideData,
+                            num_epochs=epochs,
+                            batch_size=BATCH_SIZE,
+                            savepath = simple_train_savepath,
+                            do_augment = True,
+                            model_name=modelName,
+                            getlabel_train=ldata.getlabel,
+                            log_savepath=logreg_savepath,
+                            runName=runName,
+                            lr=LEARNING_RATE,
+                            buildNet = lnet.getLymphNet,
+                            valIsTestData=True,
+                            splitSeed=SPLIT_SEED,
+                            sess = sess,
+                            netAcc = netAcc)
+
+        print("Finished Simple Training")
+
+
+        netRoot = "/home/oole/lymphoma_net_vgg/"
+
+        runName = BASENAME + "_em_" + EMRUNSTAMP + "/"
+
+
+        em_train_savepath = netRoot + runName + BASENAME + "_em"
+        logfile_path = netRoot + runName + BASENAME + "_net_log_em.csv"
+        logreg_savepath = netRoot + runName + BASENAME + "_logreg"
+
+
+
+        train_em.emtrain(trainSlideData, testSlideData,
+                         em_train_savepath, BATCH_SIZE,
+                         initial_epochnum=initialEpoch,
+                         model_name=modelName,
+                         spatial_smoothing=SPATIALSMOOTHING,
+                         do_augment=True,
+                         num_epochs=initialEpoch+numberOfEpochs, dropout_ratio=DROPOUT_RATIO, learning_rate=LEARNING_RATE, sanity_check=False,
+                         logfile_path=logfile_path,
+                         logreg_savepath=logreg_savepath,
+                         runName=runName,
+                         netAcc=netAcc,
+                         valIsTestData=True,
+                         discriminativePatchFinderTrain=TRAIN_DISC_FINDER,
+                         discriminativePatchFinderPredict=PRED_DISC_FINDER,
+                         splitSeed = SPLIT_SEED)
+        foldNum += 1
+
+
+
+print("Start KFold Crossval")
+cross_val_training()

@@ -17,7 +17,7 @@ EPOCHNUMBER = 1
 
 def train_net(trainSlideData , valSlideData=None, getlabel_train=data_tf.getlabel_new, num_epochs=2, batch_size=64, do_augment=True,
               dropout_ratio=0.5, lr=0.0005, savepath=None, shuffle_buffer_size=2048, loadpath=None, model_name="modelname", sess=tf.Session(), log_savepath=None, runName="",
-              buildNet= netutil.build_model, valIsTestData=False, initialEpoch=None, splitSeed=None):
+              buildNet= netutil.build_model, valIsTestData=False, initialEpoch=None, splitSeed=None, netAcc = None):
 
     if not valIsTestData:
         trainSlideData, valSlideData = data_tf.splitSlideLists(trainSlideData, valSlideData, splitSeed=splitSeed)
@@ -50,15 +50,12 @@ def train_net(trainSlideData , valSlideData=None, getlabel_train=data_tf.getlabe
 
     val_iterator.string_handle()
     train_iterator_handle = iterator_access[0]
-    # val_iterator_handle = iterator_access[1]
 
     x, y = proxy_iterator.get_next()
 
-    # train, loss, y, accuracy, x, keep_prob, learning_rate, is_training, y_pred, y_argmax, y_pred_prob = netutil.build_model(
-    #     model_name, x, y, use_bn_1=True, use_bn_2=True, use_dropout_1=True, use_dropout_2=True)
-
-    netAcc = buildNet(
-        model_name, x, y, use_bn_1=True, use_bn_2=True, use_dropout_1=True, use_dropout_2=True, batchSize=batch_size)
+    if netAcc is None:
+        netAcc = buildNet(
+            model_name, x, y, use_bn_1=True, use_bn_2=True, use_dropout_1=True, use_dropout_2=True, batchSize=batch_size)
     netAcc.setIteratorHandle(iterator_handle)
 
     # SAVER ###
