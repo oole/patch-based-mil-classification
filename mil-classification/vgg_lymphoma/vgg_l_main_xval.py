@@ -28,7 +28,7 @@ Trains the two-layer model in one go, and performs cross-validation.
 '''
 
 
-def cross_val_training(numberOfEpochs=150):
+def cross_val_training(numberOfEpochs=10):
     initialEpoch = 0
 
     netRoot = "/home/oole/lymphoma_net_vgg/"
@@ -41,7 +41,7 @@ def cross_val_training(numberOfEpochs=150):
 
     # load data
     # split into train val
-    basePath = "/home/oole/data_lymphoma_full/"
+    basePath = "/home/oole/data_lymphoma_slim/"
     trainDataPath = basePath + "train/"
     # testDataPath = basePath + "test/"
     trainSlideData = ldata.collect_data(trainDataPath)
@@ -79,7 +79,6 @@ def cross_val_training(numberOfEpochs=150):
                                        do_augment=True,
                                        model_name=modelName,
                                        getlabel_train=ldata.getlabel,
-                                       log_savepath=logreg_savepath,
                                        runName=runName,
                                        lr=LEARNING_RATE,
                                        buildNet=lnet.getLymphNet,
@@ -87,7 +86,9 @@ def cross_val_training(numberOfEpochs=150):
                                        splitSeed=SPLIT_SEED,
                                        sess=sess,
                                        netAcc=netAcc,
-                                       initialEpoch=initialEpoch)
+                                       initialEpoch=initialEpoch,
+                                       verbose = 1,
+                                       do_simple_validation=False)
 
         print("Finished Simple Training")
 
@@ -99,7 +100,6 @@ def cross_val_training(numberOfEpochs=150):
                          do_augment=True,
                          num_epochs=initialEpoch + numberOfEpochs, dropout_ratio=DROPOUT_RATIO,
                          learning_rate=LEARNING_RATE, sanity_check=False,
-                         logfile_path=logfile_path,
                          logreg_savepath=logreg_savepath,
                          runName=runName,
                          netAcc=netAcc,
@@ -107,7 +107,10 @@ def cross_val_training(numberOfEpochs=150):
                          discriminativePatchFinderTrain=TRAIN_DISC_FINDER,
                          discriminativePatchFinderPredict=PRED_DISC_FINDER,
                          splitSeed=SPLIT_SEED,
-                         sess=sess)
+                         sess=sess,
+                         verbose=1,
+                         do_simple_validation=False)
+
         foldNum = foldNum + 1
 
         # Reset weights for each iteration

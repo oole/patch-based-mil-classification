@@ -14,13 +14,14 @@ from disc_patch_select.disc_original import OriginalDiscFinder
 
 shuffle_buffer_size = 2048
 
+
 def emtrain(trainSlideData, valSlideData,
             loadpath, savepath, batch_size,
             initial_epochnum=0,
             model_name='model',
             spatial_smoothing=False,
             do_augment=True,
-            num_epochs =2,
+            num_epochs=2,
             dropout_ratio=0.5,
             learning_rate=0.0005,
             sanity_check=False,
@@ -30,11 +31,12 @@ def emtrain(trainSlideData, valSlideData,
             netAcc=None,
             buildNet=netutil.build_model,
             valIsTestData=False,
-            discriminativePatchFinderTrain = OriginalDiscFinder,
-            discriminativePatchFinderPredict = OriginalDiscFinder,
-            splitSeed = None,
-            sess = tf.Session()):
-
+            discriminativePatchFinderTrain=OriginalDiscFinder,
+            discriminativePatchFinderPredict=OriginalDiscFinder,
+            splitSeed=None,
+            sess=tf.Session(),
+            verbose=2,
+            do_simple_validation=True):
     iteration = 0
 
     epochnum = initial_epochnum
@@ -61,9 +63,9 @@ def emtrain(trainSlideData, valSlideData,
         # x, y = proxy_iterator.get_next()
         iterator_handle, iterator_access, proxy_iterator = dataset.proxy_iterator(sess, create_iterator_iter)
         x, y = proxy_iterator.get_next()
-        netAcc = buildNet(model_name, x, y, use_bn_1=True, use_bn_2=True, use_dropout_1=True, use_dropout_2=True,  batchSize=batch_size)
+        netAcc = buildNet(model_name, x, y, use_bn_1=True, use_bn_2=True, use_dropout_1=True, use_dropout_2=True,
+                          batchSize=batch_size)
         netAcc.setIteratorHandle(iterator_handle)
-
 
     # model saver
     saver = tf.train.Saver()
@@ -72,15 +74,14 @@ def emtrain(trainSlideData, valSlideData,
         # load model from disc
         saver.restore(sess, loadpath)
 
-
-
     netAcc.getSummmaryWriter(runName, sess.graph)
 
     discriminativePatchFinderTrain = discriminativePatchFinderTrain(trainSlideData,
                                                                     netAcc,
                                                                     spatial_smoothing,
                                                                     sess,
-                                                                    dropout_ratio=dropout_ratio, sanity_check=sanity_check, do_augment=do_augment,
+                                                                    dropout_ratio=dropout_ratio,
+                                                                    sanity_check=sanity_check, do_augment=do_augment,
                                                                     logreg_model_savepath=logreg_savepath,
                                                                     epochnum=epochnum)
 
@@ -88,7 +89,7 @@ def emtrain(trainSlideData, valSlideData,
 
         # Do not need H here
         H, disc_patches_new = discriminativePatchFinderTrain.find_discriminative_patches()
-        print("Discriminative patches: " + repr(disc_patches_new) + ". Before: " +  repr(old_disc_patches))
+        print("Discriminative patches: " + repr(disc_patches_new) + ". Before: " + repr(old_disc_patches))
 
         # H = None
         # disc_patches_new = trainSlideData.getNumberOfPatches()
@@ -108,7 +109,9 @@ def emtrain(trainSlideData, valSlideData,
                                                                        do_augment=do_augment,
                                                                        runName=runName,
                                                                        logregSavePath=logreg_savepath,
-                                                                       discriminativePatchFinderPredict = discriminativePatchFinderPredict)
+                                                                       discriminativePatchFinderPredict=discriminativePatchFinderPredict,
+                                                                       verbose=verbose,
+                                                                       do_simple_validation=do_simple_validation)
 
         epochnum += 2
         old_disc_patches = disc_patches_new
@@ -138,7 +141,9 @@ def train_on_discriminative_patches(trainSlideData,
                                     do_augment=False,
                                     runName="",
                                     logregSavePath=None,
-                                    discriminativePatchFinderPredict = None):
+                                    discriminativePatchFinderPredict=None,
+                                    verbose = 2,
+                                    do_simple_validation=True):
     slideList = trainSlideData.getSlideList()
     batchSize = netAccess.getBatchSize()
 
@@ -179,15 +184,17 @@ def train_on_discriminative_patches(trainSlideData,
                                            learning_rate=learning_rate,
                                            sess=sess,
                                            runName=runName,
-                                           actualEpoch=actualEpoch)
+                                           actualEpoch=actualEpoch,
+                                           verbose=verbose,
+                                           do_simple_validation=do_simple_validation)
 
     # Train logreg model with current net
-    logregModel = train_logreg.train_logreg(netAccess, logregSavePath, trainSlideData, dropout_ratio, sess, discriminativePatchFinderPredict)
-
+    logregModel = train_logreg.train_logreg(netAccess, logregSavePath, trainSlideData, dropout_ratio, sess,
+                                            discriminativePatchFinderPredict)
 
     evaluate.evaluateNet(netAccess, logregModel, valSlideData, actualEpoch, sess=sess, dropout=dropout_ratio,
                          runName=runName, discriminativePatchFinder=discriminativePatchFinderPredict)
-    actualEpoch +=num_epochs
+    actualEpoch += num_epochs
 
     return train_accuracy
 
@@ -199,9 +206,7 @@ def get_patch_number(slides):
     return patchnum
 
 
-
 def get_per_class_instances(trainSlideData, LE):
-
     num_0 = 0
     num_1 = 0
     num_2 = 0
@@ -229,11 +234,10 @@ def get_per_class_instances(trainSlideData, LE):
             num_5 += len(slide)
 
     instances_per_class = [num_0,
-                               num_1,
-                               num_2,
-                               num_3,
-                               num_4,
-                               num_5]
+                           num_1,
+                           num_2,
+                           num_3,
+                           num_4,
+                           num_5]
 
     print("Real class distribution:\n %s" % instances_per_class)
-

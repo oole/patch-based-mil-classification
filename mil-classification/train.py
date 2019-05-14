@@ -10,15 +10,17 @@ import validate
 import evaluate
 import train_logreg
 
-
-TBOARDFOLDER="/home/oole/tboard/"
+TBOARDFOLDER = "/home/oole/tboard/"
 
 EPOCHNUMBER = 0
 
-def train_net(trainSlideData , valSlideData=None, getlabel_train=data_tf.getlabel_new, num_epochs=2, batch_size=64, do_augment=True,
-              dropout_ratio=0.5, lr=0.0005, savepath=None, shuffle_buffer_size=2048, loadpath=None, model_name="modelname", sess=tf.Session(), log_savepath=None, runName="",
-              buildNet= netutil.build_model, valIsTestData=False, initialEpoch=None, splitSeed=None, netAcc = None):
 
+def train_net(trainSlideData, valSlideData=None, getlabel_train=data_tf.getlabel_new, num_epochs=2, batch_size=64,
+              do_augment=True,
+              dropout_ratio=0.5, lr=0.0005, savepath=None, shuffle_buffer_size=2048, loadpath=None,
+              model_name="modelname", sess=tf.Session(), log_savepath=None, runName="",
+              buildNet=netutil.build_model, valIsTestData=False, initialEpoch=None, splitSeed=None, netAcc=None,
+              verbose=2, do_simple_validation=True):
     if not valIsTestData:
         trainSlideData, valSlideData = data_tf.splitSlideLists(trainSlideData, valSlideData, splitSeed=splitSeed)
 
@@ -30,13 +32,14 @@ def train_net(trainSlideData , valSlideData=None, getlabel_train=data_tf.getlabe
                                                     batch_size=batch_size,
                                                     shuffle_buffer_size=shuffle_buffer_size,
                                                     shuffle=True,
-                                                    getlabel = trainSlideData.getLabelFunc(),
+                                                    getlabel=trainSlideData.getLabelFunc(),
                                                     labelEncoder=trainSlideData.getLabelEncoder(),
                                                     parseFunctionAugment=trainSlideData.getparseFunctionAugment())
         train_iterator = train_dataset.make_initializable_iterator()
     else:
         train_dataset = dataset.img_dataset(train_patches, batch_size=batch_size,
-                                                    shuffle_buffer_size=shuffle_buffer_size, shuffle=True, getlabel = getlabel_train)
+                                            shuffle_buffer_size=shuffle_buffer_size, shuffle=True,
+                                            getlabel=getlabel_train)
         train_iterator = train_dataset.make_initializable_iterator()
 
     val_dataset = dataset.img_dataset(val_patches, batch_size=batch_size,
@@ -55,7 +58,8 @@ def train_net(trainSlideData , valSlideData=None, getlabel_train=data_tf.getlabe
 
     if netAcc is None:
         netAcc = buildNet(
-            model_name, x, y, use_bn_1=True, use_bn_2=True, use_dropout_1=True, use_dropout_2=True, batchSize=batch_size)
+            model_name, x, y, use_bn_1=True, use_bn_2=True, use_dropout_1=True, use_dropout_2=True,
+            batchSize=batch_size)
         netAcc.setIteratorHandle(iterator_handle)
 
     # SAVER ###
@@ -66,38 +70,36 @@ def train_net(trainSlideData , valSlideData=None, getlabel_train=data_tf.getlabe
     else:
         saver.restore(sess, loadpath)
 
+    global EPOCHNUMBER
     if initialEpoch is None:
         actualEpoch = 0
-        global EPOCHNUMBER
         EPOCHNUMBER = actualEpoch
     else:
         actualEpoch = initialEpoch
-        global EPOCHNUMBER
         EPOCHNUMBER = actualEpoch
 
+    trainAccuracy, valAccuracy = train_given_net(netAcc,
+                                                 len(train_patches),
+                                                 train_iterator,
+                                                 val_iterator_len=len(val_patches),
+                                                 val_iterator=val_iterator,
+                                                 num_epochs=num_epochs,
+                                                 batch_size=batch_size,
+                                                 dropout_ratio=dropout_ratio,
+                                                 learning_rate=lr,
+                                                 sess=sess,
+                                                 runName=runName,
+                                                 log_savepath=log_savepath,
+                                                 verbose=verbose,
+                                                 do_simple_validation=do_simple_validation)
 
-    for i in range(num_epochs):
-        trainAccuracy, valAccuracy = train_given_net(netAcc,
-                                                     len(train_patches),
-                                                     train_iterator,
-                                                     val_iterator_len=len(val_patches),
-                                                     val_iterator=val_iterator,
-                                                     num_epochs=1,
-                                                     batch_size=batch_size,
-                                                     dropout_ratio=dropout_ratio,
-                                                     learning_rate=lr,
-                                                     sess=sess,
-                                                     runName=runName,
-                                                     log_savepath= log_savepath)
+    # Train logreg model with current net
+    logregModel = train_logreg.train_logreg(netAcc, log_savepath, trainSlideData, dropout_ratio, sess)
 
-        # Train logreg model with current net
-        logregModel = train_logreg.train_logreg(netAcc, log_savepath, trainSlideData, dropout_ratio, sess)
-
-        evaluate.evaluateNet(netAcc, logregModel, valSlideData, actualEpoch, sess=sess, dropout=dropout_ratio,
-                             runName=runName)
-        actualEpoch += 1
-        global EPOCHNUMBER
-        EPOCHNUMBER = actualEpoch
+    evaluate.evaluateNet(netAcc, logregModel, valSlideData, actualEpoch, sess=sess, dropout=dropout_ratio,
+                         runName=runName)
+    actualEpoch += num_epochs
+    EPOCHNUMBER = actualEpoch
 
     if savepath is not None:
         saver.save(sess, savepath)
@@ -116,9 +118,11 @@ def train_given_net(netAcc,
                     sess=tf.Session(),
                     runName="",
                     log_savepath=None,
-                    actualEpoch=None):
+                    actualEpoch=None,
+                    verbose=2,
+                    do_simple_validation=True):
+    global EPOCHNUMBER
     if actualEpoch is not None:
-        global EPOCHNUMBER
         EPOCHNUMBER = actualEpoch
 
     train_iterator_handle = sess.run(train_iterator.string_handle())
@@ -126,7 +130,7 @@ def train_given_net(netAcc,
     for epoch in range(num_epochs):
         sess.run(train_iterator.initializer)
         # sess.run(val_iterator.initializer)
-        print("Epoch: %s/%s" % (epoch+1, num_epochs))
+        print("Epoch: %s/%s" % (epoch + 1, num_epochs))
         print("Training:")
         batch_train_acc = []
         batch_train_err = []
@@ -139,14 +143,14 @@ def train_given_net(netAcc,
                 _, acc, err, _, step = sess.run(
                     [netAcc.getTrain(), netAcc.getAccuracy(), netAcc.getLoss(), netAcc.getUpdateOp(),
                      netAcc.getGlobalStep()],
-                                           feed_dict={netAcc.getKeepProb(): (1 - dropout_ratio),
-                                                      netAcc.getLearningRate(): learning_rate,
-                                                      netAcc.getIsTraining(): True,
-                                                      netAcc.getIteratorHandle(): train_iterator_handle})
-
-                util.update_print(
-                    "Training, Epoch: %0.f -- Loss: %0.5f, Acc: %0.5f, %0.d / %0.d. Step: %s" %
-                    (EPOCHNUMBER, err, acc, i, train_iterator_len // batch_size + 1, str(step)))
+                    feed_dict={netAcc.getKeepProb(): (1 - dropout_ratio),
+                               netAcc.getLearningRate(): learning_rate,
+                               netAcc.getIsTraining(): True,
+                               netAcc.getIteratorHandle(): train_iterator_handle})
+                if (verbose == 2):
+                    util.update_print(
+                        "Training, Epoch: %0.f -- Loss: %0.5f, Acc: %0.5f, %0.d / %0.d. Step: %s" %
+                        (EPOCHNUMBER, err, acc, i, train_iterator_len // batch_size + 1, str(step)))
                 i = i + 1
                 batch_train_acc.append(acc)
                 batch_train_err.append(err)
@@ -160,25 +164,33 @@ def train_given_net(netAcc,
                 break
         trainLoss = sum(np.asarray(batch_train_err)) / len(batch_train_err)
         trainAccuracy = sum(np.asarray(batch_train_acc)) / len(batch_train_acc)
-        util.writeEpochStatsToTensorBoard(trainLoss, trainAccuracy, netAcc.getSummmaryWriter(runName, sess.graph), EPOCHNUMBER)
-        print("Epoch %0.d - Training Summary -- Loss: %0.5f, Acc: %0.5f" %
-              (EPOCHNUMBER, trainLoss, trainAccuracy))
+        util.writeEpochStatsToTensorBoard(trainLoss, trainAccuracy, netAcc.getSummmaryWriter(runName, sess.graph),
+                                          EPOCHNUMBER)
+        if (verbose == 1):
+            print("Epoch %0.d - Training Summary -- Loss: %0.5f, Acc: %0.5f" %
+                  (EPOCHNUMBER, trainLoss, trainAccuracy))
         i = 1
 
         # for validation, 1. do overall accuracy (patchbased)
-        valLoss, valAccuracy = validate.validate_existing_net(val_iterator, val_iterator_len, netAcc, dropout_ratio=dropout_ratio,
-                                       batch_size=batch_size, sess=sess)
+        if do_simple_validation:
+            valLoss, valAccuracy = validate.validate_existing_net(val_iterator, val_iterator_len, netAcc,
+                                                                  dropout_ratio=dropout_ratio,
+                                                                  batch_size=batch_size, sess=sess)
 
-        util.writeValStatsToTensorBoard(valLoss, valAccuracy, netAcc.getSummmaryWriter(runName, sess.graph), step)
+            util.writeValStatsToTensorBoard(valLoss, valAccuracy, netAcc.getSummmaryWriter(runName, sess.graph), step)
 
         # 2. do max acc
 
         # 3. do logreg acc (logreg model needs to be trained first
 
-        util.write_log_file(log_savepath, epochNum=epoch + 1, trainLoss= trainLoss,
-                            trainAccuracy=trainAccuracy, valLoss=valLoss,
-                            valAccuracy=valAccuracy)
+        if (log_savepath is not None):
+            util.write_log_file(log_savepath, epochNum=epoch + 1, trainLoss=trainLoss,
+                                trainAccuracy=trainAccuracy, valLoss=valLoss,
+                                valAccuracy=valAccuracy)
         EPOCHNUMBER += 1
 
     netAcc.getSummmaryWriter(runName, sess.graph).flush()
-    return trainAccuracy, valAccuracy
+    if do_simple_validation:
+        return trainAccuracy, valAccuracy
+    else:
+        return trainAccuracy, _
