@@ -22,7 +22,7 @@ class OriginalDiscFinder(AbstractDiscFinder):
     Filters discriminative patches by applying a per image threshold on the true-class probability.
     """
 
-    def find_discriminative_patches(self):
+    def find_discriminative_patches(self, verbose=2):
         slideList = self.trainSlideData.getSlideList()
         slideLabelList = self.trainSlideData.getSlideLabelList()
         labelEncoder = self.trainSlideData.getLabelEncoder()
@@ -60,10 +60,11 @@ class OriginalDiscFinder(AbstractDiscFinder):
             gc.collect()
             # This is where the spatial structure should be recovered
             # We need to keep a list of discrimative or not
-            print("------------------------------------------------------------------------")
-            print("Slide:  " + repr(i) + "/" + repr(self.trainSlideData.getNumberOfSlides() - 1))
-            print("Predicting.")
-            print("------------------------------------------------------------------------")
+            if (verbose == 2):
+                print("------------------------------------------------------------------------")
+                print("Slide:  " + repr(i) + "/" + repr(self.trainSlideData.getNumberOfSlides() - 1))
+                print("Predicting.")
+                print("------------------------------------------------------------------------")
             patches = slideList[i]
             # get true label
             label = [slideLabelList[i]]
@@ -154,10 +155,11 @@ class OriginalDiscFinder(AbstractDiscFinder):
         # Remove non discriminative patches
         # E STEP1
         for i in range(self.trainSlideData.getNumberOfSlides()):
-            print("------------------------------------------------------------------------")
-            print("Slide" + repr(i) + "/" + repr(self.trainSlideData.getNumberOfSlides() - 1))
-            print("Find discriminizing.")
-            print("------------------------------------------------------------------------")
+            if (verbose == 2):
+                print("------------------------------------------------------------------------")
+                print("Slide" + repr(i) + "/" + repr(self.trainSlideData.getNumberOfSlides() - 1))
+                print("Find discriminizing.")
+                print("------------------------------------------------------------------------")
             label = [slideLabelList[i]]
             num_label = labelEncoder.transform(np.asarray(label))
 
@@ -188,7 +190,6 @@ class OriginalDiscFinder(AbstractDiscFinder):
                 Ri = np.percentile(E5, E5_perc)
 
             T = min([Hi, Ri])
-            print("Hi= %0.5f, Ri= %0.5f, T= %0.5f" % (Hi, Ri, T))
             patches = slideList[i]
             positive_patches = 0
             for j in range(len(patches)):
@@ -197,9 +198,8 @@ class OriginalDiscFinder(AbstractDiscFinder):
                 else:
                     H[i][j] = 1
                     positive_patches += 1
-            print("Positive patches: %0.f" % (positive_patches))
-            print("Total patches: %0.f" % (len(patches)))
-            print("Percentage of positive patches: %.2f" % (positive_patches / len(patches)))
+            print("Positive patches: %0.f, Total: %s, Percent: %s, Hi= %0.5f, Ri= %0.5f, T= %0.5f" % (
+            positive_patches, len(patches), positive_patches / len(patches), Hi, Ri, T))
 
         disc_patches = sum(np.count_nonzero(h) for h in H)
 

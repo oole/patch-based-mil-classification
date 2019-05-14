@@ -24,7 +24,7 @@ class EctropyDiscFinder(OriginalDiscFinder):
             raise ValueError("Invalid percentile, must be < 100 and >0")
         self.thresholdPercentile = thresholdPercentile
 
-    def find_discriminative_patches(self):
+    def find_discriminative_patches(self, verbose=2):
         # disc_patches = sum(np.count_nonzero(h) for h in self.H)
         slideLabels = self.trainSlideData.getSlideLabelList()
         numericLabels = self.trainSlideData.getLabelEncoder().transform(slideLabels)
@@ -35,7 +35,8 @@ class EctropyDiscFinder(OriginalDiscFinder):
         for i in range(split_collected_y_pred_argmax.shape[0]):
             self.H[i], numberOfPatches = self.filterDiscriminativePatches(split_collected_y_pred_prob[i],
                                                                           split_collected_y_pred_argmax[i],
-                                                                          numericLabels[i])
+                                                                          numericLabels[i],
+                                                                          verbose=verbose)
             totalNumberOfPatches += numberOfPatches
 
         return self.H, totalNumberOfPatches  # , train_predict_accuracy, train_max_accuracy, train_logreg_acccuracy
@@ -86,7 +87,8 @@ class EctropyDiscFinder(OriginalDiscFinder):
     Return the Hidden Variable matrix.
     """
 
-    def filterDiscriminativePatches(self, perClassProbabilities, predictedArgmax, trueClassIndex=None):
+    def filterDiscriminativePatches(self, perClassProbabilities, predictedArgmax, trueClassIndex=None,
+                                    verbose=2):
         numberOfInstances = perClassProbabilities.shape[0]
         H = np.ones(numberOfInstances)
 
@@ -105,7 +107,7 @@ class EctropyDiscFinder(OriginalDiscFinder):
                 positiveInstances += 1
             else:
                 H[i] = 0
-        print("Entropy: %s , Positive Instances %s/%s" % (
-        str(self.thresholdPercentile), str(positiveInstances), str(numberOfInstances)))
+        print("Entropy: %s , Positive Instances %s/%s, T = %s" % (
+            str(self.thresholdPercentile), str(positiveInstances), str(numberOfInstances), str(T)))
 
         return H, positiveInstances

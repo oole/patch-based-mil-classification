@@ -88,7 +88,7 @@ def emtrain(trainSlideData, valSlideData,
     while epochnum <= num_epochs + initial_epochnum:
 
         # Do not need H here
-        H, disc_patches_new = discriminativePatchFinderTrain.find_discriminative_patches()
+        H, disc_patches_new = discriminativePatchFinderTrain.find_discriminative_patches(verbose=verbose)
         print("Discriminative patches: " + repr(disc_patches_new) + ". Before: " + repr(old_disc_patches))
 
         # H = None
