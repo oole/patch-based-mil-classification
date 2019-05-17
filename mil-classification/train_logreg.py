@@ -6,10 +6,11 @@ from sklearn.metrics import accuracy_score, confusion_matrix
 import predict
 
 def train_logreg(netAccess, savepath, trainSlideData, dropout,  sess, discriminativePatchFinder=None):
-    slideHistograms = []
+
     iterator, iteratorInitOps = trainSlideData.getIterator(netAccess, augment=True)
     logRegModelList = []
     for th in [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0]:
+        slideHistograms = []
         discriminativePatchFinder.setThreshold(th)
         for i in range(trainSlideData.getNumberOfSlides()):
             slideIteratorLen = len(trainSlideData.getSlideList()[i])
@@ -21,13 +22,17 @@ def train_logreg(netAccess, savepath, trainSlideData, dropout,  sess, discrimina
                                           discriminativePatchFinder=discriminativePatchFinder)
             histogram = predict.histogram_for_predictions(slide_y_pred_argmax)
             slideHistograms.append(histogram)
-
-        logregModel = train_logreg_from_histograms_and_labels(slideHistograms, trainSlideData.getSlideLabelList(), savepath)
+        if savepath is not None:
+            logsavePath = savepath + "_th-" + str(th)
+        else:
+            logsavePath = savepath
+        logregModel = train_logreg_from_histograms_and_labels(slideHistograms, trainSlideData.getSlideLabelList(), logsavePath)
         logRegModelList.append(logregModel)
-    return logregModel
+    return logRegModelList
 
 def train_logreg_from_histograms_and_labels(histograms, labels, savepath=None):
     model = LogisticRegression(verbose=1)
+    print("#Histogram + %s, #labels + %s" % (str(len(histograms)), str(len(labels))))
     model.fit(histograms, labels)
     print(model)
     print("train_logreg, finished")

@@ -20,7 +20,7 @@ def train_net(trainSlideData, valSlideData=None, getlabel_train=data_tf.getlabel
               dropout_ratio=0.5, lr=0.0005, savepath=None, shuffle_buffer_size=2048, loadpath=None,
               model_name="modelname", sess=tf.Session(), log_savepath=None, runName="",
               buildNet=netutil.build_model, valIsTestData=False, initialEpoch=None, splitSeed=None, netAcc=None,
-              verbose=2, do_simple_validation=True):
+              verbose=2, do_simple_validation=True, discriminativePatchFinderPredict=None):
     if not valIsTestData:
         trainSlideData, valSlideData = data_tf.splitSlideLists(trainSlideData, valSlideData, splitSeed=splitSeed)
 
@@ -94,10 +94,10 @@ def train_net(trainSlideData, valSlideData=None, getlabel_train=data_tf.getlabel
                                                  do_simple_validation=do_simple_validation)
 
     # Train logreg model with current net
-    logregModel = train_logreg.train_logreg(netAcc, log_savepath, trainSlideData, dropout_ratio, sess)
+    logregModel = train_logreg.train_logreg(netAcc, log_savepath, trainSlideData, dropout_ratio, sess, discriminativePatchFinder=discriminativePatchFinderPredict)
 
     evaluate.evaluateNet(netAcc, logregModel, valSlideData, actualEpoch, sess=sess, dropout=dropout_ratio,
-                         runName=runName)
+                         runName=runName, discriminativePatchFinder=discriminativePatchFinderPredict)
     actualEpoch += num_epochs
     EPOCHNUMBER = actualEpoch
 

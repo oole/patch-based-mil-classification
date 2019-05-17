@@ -12,11 +12,12 @@ from sklearn.metrics import accuracy_score, confusion_matrix
 
 def evaluateNet(netAccess: netutil.NetAccess, logRegModel, valSlideList: data_tf.SlideData, step, sess=tf.Session(), dropout=0.5, runName="", discriminativePatchFinder= None):
 
-    slideHistograms = []
-    simpleAccuracies = []
+
     iterator, iteratorInitOps = valSlideList.getIterator(netAccess, augment=False)
     modelNum = 0
     for th in [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1]:
+        slideHistograms = []
+        simpleAccuracies = []
         discriminativePatchFinder.setThreshold(th)
         for i in range(valSlideList.getNumberOfSlides()):
             iteratorLen = len(valSlideList.getSlideList()[i])
@@ -41,12 +42,12 @@ def evaluateNet(netAccess: netutil.NetAccess, logRegModel, valSlideList: data_tf
 
         if (logRegModel[modelNum] is not None):
             logregAccuracy, logregConfusionMatrix = train_logreg.test_given_logreg(slideHistograms, valSlideList.getSlideLabelList(), logRegModel[modelNum])
-            util.writeScalarSummary(logregAccuracy, "logRegAccuracyVal", netAccess.getSummmaryWriter(runName, sess.graph), step=step)
+            util.writeScalarSummary(logregAccuracy, "logRegAccuracyVal_th-" + str(th), netAccess.getSummmaryWriter(runName, sess.graph), step=step)
             print("LogReg Confusion Matrix:\n %s" % logregConfusionMatrix)
 
         # scalar, scalarName, summaryWriter, step
-        util.writeScalarSummary(sum(simpleAccuracies)/valSlideList.getNumberOfSlides(), "simpleAccuracyVal", netAccess.getSummmaryWriter(runName, sess.graph),
+        util.writeScalarSummary(sum(simpleAccuracies)/valSlideList.getNumberOfSlides(), "simpleAccuracyVal_th-" + str(th), netAccess.getSummmaryWriter(runName, sess.graph),
                                 step=step)
-        util.writeScalarSummary(maxAccuracy, "maxAccuracyVal", netAccess.getSummmaryWriter(runName, sess.graph), step=step)
+        util.writeScalarSummary(maxAccuracy, "maxAccuracyVal_th-" + str(th), netAccess.getSummmaryWriter(runName, sess.graph), step=step)
 
         netAccess.getSummmaryWriter(runName, sess.graph).flush()
