@@ -12,9 +12,9 @@ def predict_given_net(pred_iterator_handle, pred_iterator_len,
     # sess.run(pred_iterator.initializer)
     print("Prediction:")
     # Do non verbose_validation
-    batch_pred_y_pred = []
-    batch_pred_y_argmax = []
-    batch_pred_y_pred_prob = []
+    raw_per_class_activations = []
+    slide_predicted_argmax = []
+    per_class_probability = []
     i=1
 
     while True:
@@ -28,25 +28,15 @@ def predict_given_net(pred_iterator_handle, pred_iterator_len,
             util.update_print(
                 "Prediction: batch %0.d / %0.d" %
                 (i, pred_iterator_len // batch_size + 1))
-            batch_pred_y_pred.extend(y_pred)
-            batch_pred_y_argmax.extend(y_argmax)
-            batch_pred_y_pred_prob.extend(y_pred_prob)
+            raw_per_class_activations.extend(y_pred)
+            slide_predicted_argmax.extend(y_argmax)
+            per_class_probability.extend(y_pred_prob)
         except tf.errors.OutOfRangeError:
             print("End of prediction dataset.")
             break
         i += 1
 
-    if discriminativePatchFinder is not None:
-        if discriminativePatchFinder.useDuringPredict():
-            print("Filtering discriminative patches for prediction")
-            H, _ = discriminativePatchFinder.filterDiscriminativePatches(np.asarray(batch_pred_y_pred_prob), batch_pred_y_argmax)
-            for i in reversed(range(len(batch_pred_y_pred_prob))):
-                if H[i] == 0:
-                    del batch_pred_y_pred[i]
-                    del batch_pred_y_pred_prob[i]
-                    del batch_pred_y_argmax[i]
-
-    return batch_pred_y_pred, batch_pred_y_pred_prob, batch_pred_y_argmax
+    return raw_per_class_activations, per_class_probability, slide_predicted_argmax
 
 
 def histogram_for_predictions(predictions):
