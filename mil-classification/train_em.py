@@ -189,10 +189,10 @@ def train_on_discriminative_patches(trainSlideData,
                                            do_simple_validation=do_simple_validation)
 
     # Train logreg model with current net
-    logregModel = train_logreg.train_logreg(netAccess, logregSavePath, trainSlideData, dropout_ratio, sess,
+    logregModels, fullModel = train_logreg.train_logreg(netAccess, logregSavePath, trainSlideData, dropout_ratio, sess,
                                             discriminativePatchFinderPredict)
 
-    evaluate.evaluateNet(netAccess, logregModel, valSlideData, actualEpoch, sess=sess, dropout=dropout_ratio,
+    evaluate.evaluateNet(netAccess, logregModels, fullModel, valSlideData, actualEpoch, sess=sess, dropout=dropout_ratio,
                          runName=runName, discriminativePatchFinder=discriminativePatchFinderPredict)
     actualEpoch += num_epochs
 

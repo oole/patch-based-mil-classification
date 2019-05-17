@@ -23,7 +23,7 @@ PRED_DISC_FINDER = EctropyDiscFinder(THRESHOLD_PERCENTILE)
 
 BASENAME = "vgg_lymph_xval"
 SIMPLERUNSTAMP = "190517_l-" + str(LEARNING_RATE) + "_drop-" + str(DROPOUT_RATIO) + "_bs-" + str(
-    BATCH_SIZE) + "_entropy"
+    BATCH_SIZE) + "_allInOne"
 #SIMPLERUNSTAMP = "190517_l-" + str(LEARNING_RATE) + "_drop-" + str(DROPOUT_RATIO) + "_bs-" + str(
 #    BATCH_SIZE) + "_entropy-" + str(THRESHOLD_PERCENTILE)
 

@@ -10,13 +10,13 @@ import util
 
 from sklearn.metrics import accuracy_score, confusion_matrix
 
-def evaluateNet(netAccess: netutil.NetAccess, logRegModel, fullLogreg, valSlideList: data_tf.SlideData, step, sess=tf.Session(), dropout=0.5, runName="", discriminativePatchFinder= None):
-    iterator, iteratorInitOps = trainSlideData.getIterator(netAccess, augment=True)
+def evaluateNet(netAccess: netutil.NetAccess, logRegModel, fullLogreg, valSlideData: data_tf.SlideData, step, sess=tf.Session(), dropout=0.5, runName="", discriminativePatchFinder= None):
+    iterator, iteratorInitOps = valSlideData.getIterator(netAccess, augment=False)
     slide_raw_probabilities = []
     slide_per_class_probabilities = []
     slide_predicted_argmax = []
-    for i in range(trainSlideData.getNumberOfSlides()):
-        slideIteratorLen = len(trainSlideData.getSlideList()[i])
+    for i in range(valSlideData.getNumberOfSlides()):
+        slideIteratorLen = len(valSlideData.getSlideList()[i])
         sess.run(iteratorInitOps[i])
         slideIteratorHandle = sess.run(iterator.string_handle())
         raw_per_class_activations, per_class_probabilities, predicted_argmax = \
@@ -27,7 +27,6 @@ def evaluateNet(netAccess: netutil.NetAccess, logRegModel, fullLogreg, valSlideL
         slide_per_class_probabilities.append(per_class_probabilities)
         slide_predicted_argmax.append(predicted_argmax)
 
-    iterator, iteratorInitOps = valSlideList.getIterator(netAccess, augment=False)
     modelNum = 0
     for th in [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1]:
         slideHistograms = []
@@ -37,81 +36,81 @@ def evaluateNet(netAccess: netutil.NetAccess, logRegModel, fullLogreg, valSlideL
         model_slide_predicted_argmax = []
 
         discriminativePatchFinder.setThreshold(th)
-        for i in range(valSlideList.getNumberOfSlides()):
+        discriminativePatchFinder.setThreshold(th)
+        for i in range(len(slide_predicted_argmax)):
             if discriminativePatchFinder is not None:
                 if discriminativePatchFinder.useDuringPredict():
                     print("Filtering discriminative patches for prediction")
                     H, _ = discriminativePatchFinder.filterDiscriminativePatches(
                         np.asarray(slide_per_class_probabilities[i]),
-                        slide_predicted_argmax)
+                        slide_predicted_argmax[i])
                     indices_to_ignore = []
                     for j in range(len(slide_predicted_argmax[i])):
-                        if H[i] == 0:
-                            indices_to_ignore.extend(i)
-                    model_slide_raw_probabilities .append(np.delete(np.asarray(slide_raw_probabilities[i], indices_to_ignore)))
-                    model_slide_per_class_probabilities.append(np.delete(
-                        np.asarray(slide_per_class_probabilities[i], indices_to_ignore)))
-                    model_slide_predicted_argmax.append(np.delete(np.asarray(slide_predicted_argmax[i], indices_to_ignore)))
+                        if H[j] == 0:
+                            indices_to_ignore.append(j)
+                    model_slide_raw_probabilities.append(
+                        np.delete(slide_raw_probabilities[i], indices_to_ignore, axis=0))
+                    model_slide_per_class_probabilities.append(
+                        np.delete(slide_per_class_probabilities[i], indices_to_ignore, axis=0))
+                    model_slide_predicted_argmax.append(
+                        np.delete(np.asarray(slide_predicted_argmax[i]), indices_to_ignore, axis=0))
 
-            simpleAccuracy = accuracy_score([valSlideList.getSlideLabelList()[i]] * len(model_slide_predicted_argmax), list(
-                map(valSlideList.getLabelEncoder().inverse_transform, model_slide_predicted_argmax)))
+            simpleAccuracy = accuracy_score([valSlideData.getSlideLabelList()[i]] * len(model_slide_predicted_argmax[i]), list(
+                map(valSlideData.getLabelEncoder().inverse_transform, model_slide_predicted_argmax[i])))
             simpleAccuracies.append(simpleAccuracy)
 
-        histogram = predict.histogram_for_predictions(model_slide_predicted_argmax)
-        slideHistograms.append(histogram)
+            histogram = predict.histogram_for_predictions(model_slide_predicted_argmax[i])
+            slideHistograms.append(histogram)
 
-        maxPredictions = list(map(valSlideList.getLabelEncoder().inverse_transform, list(map(np.argmax, slideHistograms))))
-        maxAccuracy = accuracy_score(valSlideList.getSlideLabelList(), maxPredictions)
+        maxPredictions = list(map(valSlideData.getLabelEncoder().inverse_transform, list(map(np.argmax, slideHistograms))))
+        maxAccuracy = accuracy_score(valSlideData.getSlideLabelList(), maxPredictions)
         # print(accuracy)
-        maxConfusionMatrix = confusion_matrix(valSlideList.getSlideLabelList(), maxPredictions)
+        maxConfusionMatrix = confusion_matrix(valSlideData.getSlideLabelList(), maxPredictions)
         print("Max Confusion Matrix:\n %s" % maxConfusionMatrix)
 
 
         if (logRegModel[modelNum] is not None):
-            logregAccuracy, logregConfusionMatrix = train_logreg.test_given_logreg(slideHistograms, valSlideList.getSlideLabelList(), logRegModel[modelNum])
+            logregAccuracy, logregConfusionMatrix = train_logreg.test_given_logreg(slideHistograms, valSlideData.getSlideLabelList(), logRegModel[modelNum])
             util.writeScalarSummary(logregAccuracy, "logRegAccuracyVal_th-" + str(th), netAccess.getSummmaryWriter(runName, sess.graph), step=step)
             print("LogReg Confusion Matrix:\n %s" % logregConfusionMatrix)
 
         # scalar, scalarName, summaryWriter, step
-        util.writeScalarSummary(sum(simpleAccuracies)/valSlideList.getNumberOfSlides(), "simpleAccuracyVal_th-" + str(th), netAccess.getSummmaryWriter(runName, sess.graph),
+        util.writeScalarSummary(sum(simpleAccuracies) / valSlideData.getNumberOfSlides(), "simpleAccuracyVal_th-" + str(th), netAccess.getSummmaryWriter(runName, sess.graph),
                                 step=step)
         util.writeScalarSummary(maxAccuracy, "maxAccuracyVal_th-" + str(th), netAccess.getSummmaryWriter(runName, sess.graph), step=step)
 
         netAccess.getSummmaryWriter(runName, sess.graph).flush()
+        modelNum = modelNum + 1
 
     slideHistograms = []
     simpleAccuracies = []
-    for i in range(valSlideList.getNumberOfSlides()):
-        iteratorLen = len(valSlideList.getSlideList()[i])
-        sess.run(iteratorInitOps[i])
-        iteratorHandle = sess.run(iterator.string_handle())
-
-        simpleAccuracy = accuracy_score([valSlideList.getSlideLabelList()[i]] * len(slide_predicted_argmax[i]), list(
-            map(valSlideList.getLabelEncoder().inverse_transform, slide_predicted_argmax[i])))
+    for i in range(valSlideData.getNumberOfSlides()):
+        simpleAccuracy = accuracy_score([valSlideData.getSlideLabelList()[i]] * len(slide_predicted_argmax[i]), list(
+            map(valSlideData.getLabelEncoder().inverse_transform, slide_predicted_argmax[i])))
         simpleAccuracies.append(simpleAccuracy)
-    histogram = predict.histogram_for_predictions(slide_predicted_argmax[i])
-    slideHistograms.append(histogram)
+        histogram = predict.histogram_for_predictions(slide_predicted_argmax[i])
+        slideHistograms.append(histogram)
 
     maxPredictions = list(
-        map(valSlideList.getLabelEncoder().inverse_transform, list(map(np.argmax, slideHistograms))))
-    maxAccuracy = accuracy_score(valSlideList.getSlideLabelList(), maxPredictions)
+        map(valSlideData.getLabelEncoder().inverse_transform, list(map(np.argmax, slideHistograms))))
+    maxAccuracy = accuracy_score(valSlideData.getSlideLabelList(), maxPredictions)
     # print(accuracy)
-    maxConfusionMatrix = confusion_matrix(valSlideList.getSlideLabelList(), maxPredictions)
+    maxConfusionMatrix = confusion_matrix(valSlideData.getSlideLabelList(), maxPredictions)
     print("Max Confusion Matrix:\n %s" % maxConfusionMatrix)
 
-    if (logRegModel[modelNum] is not None):
+    if (fullLogreg is not None):
         logregAccuracy, logregConfusionMatrix = train_logreg.test_given_logreg(slideHistograms,
-                                                                               valSlideList.getSlideLabelList(),
-                                                                               logRegModel[modelNum])
+                                                                               valSlideData.getSlideLabelList(),
+                                                                               fullLogreg)
         util.writeScalarSummary(logregAccuracy, "logRegAccuracyVal",
                                 netAccess.getSummmaryWriter(runName, sess.graph), step=step)
         print("LogReg Confusion Matrix:\n %s" % logregConfusionMatrix)
 
     # scalar, scalarName, summaryWriter, step
-    util.writeScalarSummary(sum(simpleAccuracies) / valSlideList.getNumberOfSlides(),
+    util.writeScalarSummary(sum(simpleAccuracies) / valSlideData.getNumberOfSlides(),
                             "simpleAccuracyVal", netAccess.getSummmaryWriter(runName, sess.graph),
                             step=step)
-    util.writeScalarSummary(maxAccuracy, "maxAccuracyVal" + str(th),
+    util.writeScalarSummary(maxAccuracy, "maxAccuracyVal",
                             netAccess.getSummmaryWriter(runName, sess.graph), step=step)
 
     netAccess.getSummmaryWriter(runName, sess.graph).flush()

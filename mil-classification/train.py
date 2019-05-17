@@ -94,9 +94,9 @@ def train_net(trainSlideData, valSlideData=None, getlabel_train=data_tf.getlabel
                                                  do_simple_validation=do_simple_validation)
 
     # Train logreg model with current net
-    logregModel = train_logreg.train_logreg(netAcc, log_savepath, trainSlideData, dropout_ratio, sess, discriminativePatchFinder=discriminativePatchFinderPredict)
+    logregModels, fullModel = train_logreg.train_logreg(netAcc, log_savepath, trainSlideData, dropout_ratio, sess, discriminativePatchFinder=discriminativePatchFinderPredict)
 
-    evaluate.evaluateNet(netAcc, logregModel, valSlideData, actualEpoch, sess=sess, dropout=dropout_ratio,
+    evaluate.evaluateNet(netAcc, logregModels, fullModel, valSlideData, actualEpoch, sess=sess, dropout=dropout_ratio,
                          runName=runName, discriminativePatchFinder=discriminativePatchFinderPredict)
     actualEpoch += num_epochs
     EPOCHNUMBER = actualEpoch
