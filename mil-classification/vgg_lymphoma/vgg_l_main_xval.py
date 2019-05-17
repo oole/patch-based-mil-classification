@@ -22,8 +22,10 @@ TRAIN_DISC_FINDER = OriginalDiscFinder
 PRED_DISC_FINDER = EctropyDiscFinder(THRESHOLD_PERCENTILE)
 
 BASENAME = "vgg_lymph_xval"
-SIMPLERUNSTAMP = "190516_l-" + str(LEARNING_RATE) + "_drop-" + str(DROPOUT_RATIO) + "_bs-" + str(
-    BATCH_SIZE) + "_entropy-" + str(THRESHOLD_PERCENTILE)
+SIMPLERUNSTAMP = "190517_l-" + str(LEARNING_RATE) + "_drop-" + str(DROPOUT_RATIO) + "_bs-" + str(
+    BATCH_SIZE) + "_entropy"
+#SIMPLERUNSTAMP = "190517_l-" + str(LEARNING_RATE) + "_drop-" + str(DROPOUT_RATIO) + "_bs-" + str(
+#    BATCH_SIZE) + "_entropy-" + str(THRESHOLD_PERCENTILE)
 
 '''
 Trains the two-layer model in one go, and performs cross-validation.
@@ -91,7 +93,8 @@ def cross_val_training(foldToTrain, numberOfEpochs=30):
                                            netAcc=netAcc,
                                            initialEpoch=initialEpoch,
                                            verbose = 1,
-                                           do_simple_validation=False)
+                                           do_simple_validation=False,
+                                           discriminativePatchFinderPredict=PRED_DISC_FINDER)
 
             print("Finished Simple Training")
 
@@ -121,6 +124,6 @@ def cross_val_training(foldToTrain, numberOfEpochs=30):
 
 
 print("Start KFold Crossval")
-foldToTrain = 3
-numberOfEpochs = 50
+foldToTrain = 1
+numberOfEpochs = 60
 cross_val_training(foldToTrain, numberOfEpochs)
