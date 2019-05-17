@@ -24,6 +24,9 @@ class EctropyDiscFinder(OriginalDiscFinder):
             raise ValueError("Invalid percentile, must be < 100 and >0")
         self.thresholdPercentile = thresholdPercentile
 
+    def setThreshold(self, th):
+        self.thresholdPercentile = th
+
     def find_discriminative_patches(self, verbose=2):
         # disc_patches = sum(np.count_nonzero(h) for h in self.H)
         slideLabels = self.trainSlideData.getSlideLabelList()

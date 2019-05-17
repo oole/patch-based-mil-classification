@@ -8,18 +8,22 @@ import predict
 def train_logreg(netAccess, savepath, trainSlideData, dropout,  sess, discriminativePatchFinder=None):
     slideHistograms = []
     iterator, iteratorInitOps = trainSlideData.getIterator(netAccess, augment=True)
-    for i in range(trainSlideData.getNumberOfSlides()):
-        slideIteratorLen = len(trainSlideData.getSlideList()[i])
-        sess.run(iteratorInitOps[i])
-        slideIteratorHandle = sess.run(iterator.string_handle())
-        slide_y_pred, slide_y_pred_prob, slide_y_pred_argmax = \
-            predict.predict_given_net(slideIteratorHandle, slideIteratorLen,
-                                      netAccess, batch_size=netAccess.getBatchSize(), dropout_ratio=dropout, sess=sess,
-                                      discriminativePatchFinder=discriminativePatchFinder)
-        histogram = predict.histogram_for_predictions(slide_y_pred_argmax)
-        slideHistograms.append(histogram)
+    logRegModelList = []
+    for th in [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0]:
+        discriminativePatchFinder.setThreshold(th)
+        for i in range(trainSlideData.getNumberOfSlides()):
+            slideIteratorLen = len(trainSlideData.getSlideList()[i])
+            sess.run(iteratorInitOps[i])
+            slideIteratorHandle = sess.run(iterator.string_handle())
+            slide_y_pred, slide_y_pred_prob, slide_y_pred_argmax = \
+                predict.predict_given_net(slideIteratorHandle, slideIteratorLen,
+                                          netAccess, batch_size=netAccess.getBatchSize(), dropout_ratio=dropout, sess=sess,
+                                          discriminativePatchFinder=discriminativePatchFinder)
+            histogram = predict.histogram_for_predictions(slide_y_pred_argmax)
+            slideHistograms.append(histogram)
 
-    logregModel = train_logreg_from_histograms_and_labels(slideHistograms, trainSlideData.getSlideLabelList(), savepath)
+        logregModel = train_logreg_from_histograms_and_labels(slideHistograms, trainSlideData.getSlideLabelList(), savepath)
+        logRegModelList.append(logregModel)
     return logregModel
 
 def train_logreg_from_histograms_and_labels(histograms, labels, savepath=None):
