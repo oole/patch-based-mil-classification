@@ -8,6 +8,8 @@ from sklearn.model_selection import train_test_split, KFold
 import tensorflow as tf
 import dataset
 
+import shutil
+
 """
 Check patch name for classname and return it
 """
@@ -585,7 +587,12 @@ def KFoldSlideList(trainSlideData, valSlideData, numberOfSplits=5, splitSeed=133
     np.random.seed(shuffleSeed)
     idxs = np.arange(len(trainSlideData.getSlideList()))
     np.random.shuffle(idxs)
+    fold = 1
     for train_idx, test_idx in kf.split(idxs):
+        flCount = 0
+        cllCount = 0
+        mclCount = 0
+
         if trainSlideData.getSlideDimensionList() is None:
             hasDim = False
             trainDimList = None
@@ -597,6 +604,27 @@ def KFoldSlideList(trainSlideData, valSlideData, numberOfSplits=5, splitSeed=133
 
         trainSlideList = [np.asarray(trainSlideData.getSlideList()[i]) for i in idxs[train_idx]]
         trainLabelList = [np.asarray(trainSlideData.getSlideLabelList()[i]) for i in idxs[train_idx]]
+        # TODO debug by copying the files to a new destination!, and check if the labels coorrespond.!
+
+        for i in range(len(trainSlideList)):
+            dirName = os.path.dirname(trainSlideList[i][0])
+            classFrompath = os.path.basename(os.path.dirname(dirName))
+            #print ("PathClass: %s -- %s Label" % (str(classFrompath), str(trainLabelList[i])))
+
+            if str(classFrompath) != str(trainLabelList[i]):
+                raise Exception("folding is fucked")
+
+            if str(trainLabelList[i]) == 'FL':
+                flCount = flCount + 1
+            if str(trainLabelList[i]) == 'CLL':
+                cllCount= cllCount + 1
+            if str(trainLabelList[i]) == 'MCL':
+                mclCount = mclCount + 1
+        print("Train- FL: %s, CLL: %s, MCL: %s" % (str(flCount), str(cllCount), str(mclCount)))
+        flCount = 0
+        cllCount = 0
+        mclCount = 0
+
         newTrainSlideData = SlideData(trainSlideList,
                                       None,
                                       np.sum(trainSlideList[i].size for i in range(len(trainSlideList))),
@@ -608,6 +636,23 @@ def KFoldSlideList(trainSlideData, valSlideData, numberOfSplits=5, splitSeed=133
                                       parseFunction=trainSlideData.getparseFunctionNormal())
         valSlideList = [np.asarray(valSlideData.getSlideList()[i]) for i in idxs[test_idx]]
         valLabelList = [np.asarray(valSlideData.getSlideLabelList()[i]) for i in idxs[test_idx]]
+
+        for i in range(len(valSlideList)):
+            dirName = os.path.dirname(valSlideList[i][0])
+            classFrompath = os.path.basename(os.path.dirname(dirName))
+            #print ("PathClass: %s -- %s Label" % (str(classFrompath), str(valLabelList[i])))
+
+            if str(classFrompath) != str(valLabelList[i]):
+                raise Exception("folding is fucked")
+
+            if str(trainLabelList[i]) == 'FL':
+                flCount = flCount + 1
+            if str(trainLabelList[i]) == 'CLL':
+                cllCount = cllCount + 1
+            if str(trainLabelList[i]) == 'MCL':
+                mclCount = mclCount + 1
+        print("Val- FL: %s, CLL: %s, MCL: %s" % (str(flCount), str(cllCount), str(mclCount)))
+
         newValSlideData = SlideData(trainSlideList,
                                       None,
                                       np.sum(valSlideList[i].size for i in range(len(valSlideList))),
