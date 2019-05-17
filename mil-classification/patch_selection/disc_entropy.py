@@ -100,7 +100,7 @@ class EctropyDiscFinder(OriginalDiscFinder):
             entropies.append(stats.entropy(perClassProbabilities[i]))
 
         # percentile H_perc -> 5%
-        H_perc = self.thresholdPercentile * 10
+        H_perc = self.thresholdPercentile * 100
 
         T = np.percentile(entropies, H_perc)
         positiveInstances = 0
